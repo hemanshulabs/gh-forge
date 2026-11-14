@@ -1,0 +1,46 @@
+:root {
+  --forge-cyan: #00F9FB;
+  --forge-blue: #42A0FA;
+  --forge-green: #3DF294;
+  --forge-purple: #A371F7;
+  --forge-amber: #E0AF68;
+  --forge-red: #F7768E;
+  --forge-gray: #656C76;
+  --forge-bg-dark: #0B0F17;
+  --forge-bg-card: #111827;
+  --forge-border-dark: #1E293B;
+  --forge-gradient: linear-gradient(135deg, #00F9FB 0%, #42A0FA 100%);
+}
+
+.dark {
+  --ui-primary: #00F9FB;
+  --ui-bg: #0B0F17;
+  --ui-bg-muted: #0F172A;
+  --ui-bg-elevated: #162032;
+  --ui-border: #1E293B;
+  --ui-border-muted: #1E293B;
+  --ui-border-accented: #334155;
+}
+
+/* Forge gradient text utility */
+.forge-gradient-text {
+  background: linear-gradient(135deg, #00F9FB 0%, #42A0FA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Subtle cyan glow for hero cards & badges */
+.forge-glow {
+  box-shadow: 0 0 25px rgba(0, 249, 251, 0.12);
+}
+
+.forge-border-glow:hover {
+  border-color: rgba(0, 249, 251, 0.4);
+  box-shadow: 0 0 15px rgba(0, 249, 251, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Terminal code blocks styled to match Forge's TUI look */
+pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
