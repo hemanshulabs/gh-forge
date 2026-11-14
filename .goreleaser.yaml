@@ -9,7 +9,6 @@ gomod:
   env:
     - GOPROXY=https://proxy.golang.org,direct
     - GOSUMDB=sum.golang.org
-    - GOPRIVATE=github.com/hemanshulabs/forge
   mod: mod
 
 builds:
@@ -86,7 +85,7 @@ release:
 
 announce:
   bluesky:
-    enabled: true
+    enabled: false
     username: "hemanshulabs"
     # message_template: (Default) '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
 
