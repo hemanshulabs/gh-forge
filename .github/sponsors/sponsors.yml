@@ -1,0 +1,15 @@
+github_user: hemanshulabs
+
+tiers:
+  - id: innovator
+    name: TUI Innovator
+    monthly_rate: 100
+  - id: visionary
+    name: TUI Visionary
+    monthly_rate: 50
+  - id: power-user
+    name: TUI Power User
+    monthly_rate: 20
+  - id: backer
+    name: TUI Backer
+    monthly_rate: 5
