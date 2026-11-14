@@ -34,7 +34,7 @@ tasks:
     desc: Install the latest available version as a gh extension
     cmds:
       - task: uninstall
-      - echo "🕐 Installing latest version..." && gh ext install hemanshulabs/forge
+      - echo "🕐 Installing latest version..." && gh ext install hemanshulabs/gh-forge
       - forge --version
 
   debug:

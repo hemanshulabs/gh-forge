@@ -76,10 +76,10 @@ release:
 
     <br />
 
-    <a  class="underline: none;" href="https://github.com/hemanshulabs/forge">
+    <a  class="underline: none;" href="https://github.com/hemanshulabs/gh-forge">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hemanshulabs/forge/main/docs/public/logo.png">
-        <img alt="FORGE Logo" width="600" src="https://raw.githubusercontent.com/hemanshulabs/forge/main/docs/public/logo-light.png">
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hemanshulabs/gh-forge/main/docs/public/logo.png">
+        <img alt="FORGE Logo" width="600" src="https://raw.githubusercontent.com/hemanshulabs/gh-forge/main/docs/public/logo-light.png">
       </picture>
     </a>
 
@@ -92,7 +92,7 @@ announce:
   discord:
     enabled: true
     color: "8037112"
-    icon_url: "https://raw.githubusercontent.com/hemanshulabs/forge/main/docs/public/favicon.png"
+    icon_url: "https://raw.githubusercontent.com/hemanshulabs/gh-forge/main/docs/public/favicon.png"
     # message_template: (Default) '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
 
 changelog:

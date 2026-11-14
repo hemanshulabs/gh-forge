@@ -26,7 +26,7 @@ func FetchLatestVersion() (VersionResponse, error) {
 
 	variables := map[string]any{
 		"owner": graphql.String("hemanshulabs"),
-		"name":  graphql.String("forge"),
+		"name":  graphql.String("gh-forge"),
 	}
 
 	log.Debug("Fetching latest version")

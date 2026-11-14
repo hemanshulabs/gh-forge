@@ -1,14 +1,17 @@
 package tabs
 
 import (
-	tea "charm.land/bubbletea/v2"
+	"testing"
 
-	// "charm.land/x/exp/teatest"
+	tea "charm.land/bubbletea/v2"
+	"github.com/stretchr/testify/require"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tabs/testdata"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/theme"
 )
 
 // func TestTabs(t *testing.T) {
@@ -216,4 +219,27 @@ func (m testModel) Update(msg tea.Msg) (testModel, tea.Cmd) {
 
 func (m testModel) View() string {
 	return m.tabs.View()
+}
+
+func TestTabs_ViewLogo_UpdateIndicator(t *testing.T) {
+	zone.NewGlobal()
+	ctx := &context.ProgramContext{
+		ScreenWidth:  120,
+		ScreenHeight: 30,
+		Version:      "v0.1.0",
+		Theme:        *theme.DefaultTheme,
+		Styles:       context.DefaultStyles,
+	}
+	m := NewModel(ctx)
+
+	// Up to date: no update indicator
+	m.SetLatestVersion("v0.1.0")
+	view := m.View()
+	require.NotContains(t, view, "New version available")
+
+	// Newer version: shows update indicator
+	m.SetLatestVersion("v0.2.0")
+	view = m.View()
+	require.Contains(t, view, "New version available: v0.2.0")
+	require.Contains(t, view, "[U to update]")
 }

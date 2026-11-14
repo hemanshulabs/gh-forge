@@ -572,7 +572,7 @@ Create one under: %s
 Example of a config.yml file:
 %s
 
-For more info, go to https://github.com/hemanshulabs/forge
+For more info, go to https://github.com/hemanshulabs/gh-forge
 press q to exit.
 
 Original error: %v`,

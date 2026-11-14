@@ -131,3 +131,43 @@ func RemoveLastReset(s string) string {
 
 	return s[:idx]
 }
+
+// IsNewerVersion returns true if latest is a newer semantic version than current.
+// If current is "dev", "(devel)", or empty, any valid latest version is considered newer.
+func IsNewerVersion(latest, current string) bool {
+	if latest == "" {
+		return false
+	}
+	cleanLatest := strings.TrimPrefix(strings.TrimSpace(latest), "v")
+	cleanCurrent := strings.TrimPrefix(strings.TrimSpace(current), "v")
+
+	if cleanCurrent == "dev" || cleanCurrent == "" || cleanCurrent == "(devel)" {
+		return true
+	}
+
+	if cleanLatest == cleanCurrent {
+		return false
+	}
+
+	latestParts := strings.Split(cleanLatest, ".")
+	currentParts := strings.Split(cleanCurrent, ".")
+
+	for i := 0; i < len(latestParts) && i < len(currentParts); i++ {
+		lNum, lErr := strconv.Atoi(latestParts[i])
+		cNum, cErr := strconv.Atoi(currentParts[i])
+		if lErr == nil && cErr == nil {
+			if lNum > cNum {
+				return true
+			}
+			if lNum < cNum {
+				return false
+			}
+		} else {
+			if latestParts[i] != currentParts[i] {
+				return latestParts[i] > currentParts[i]
+			}
+		}
+	}
+
+	return len(latestParts) > len(currentParts)
+}

@@ -49,6 +49,7 @@ type KeyMap struct {
 	SectionMode           key.Binding
 	NewSection            key.Binding
 	RemoveSection         key.Binding
+	UpdateCLI             key.Binding
 	Help                  key.Binding
 	Quit                  key.Binding
 }
@@ -134,6 +135,7 @@ func (k KeyMap) AppKeys() []key.Binding {
 		k.Search,
 		k.NewSection,
 		k.RemoveSection,
+		k.UpdateCLI,
 	}
 }
 
@@ -217,6 +219,10 @@ var Keys = &KeyMap{
 	CopyUrl: key.NewBinding(
 		key.WithKeys("Y"),
 		key.WithHelp("Y", "copy url"),
+	),
+	UpdateCLI: key.NewBinding(
+		key.WithKeys("U"),
+		key.WithHelp("U", "update CLI"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
@@ -335,6 +341,8 @@ func rebindUniversal(universal []config.Keybinding) error {
 			key = &Keys.CopyNumber
 		case "newSection":
 			key = &Keys.NewSection
+		case "updateCLI", "updateCli", "update":
+			key = &Keys.UpdateCLI
 		case "help":
 			key = &Keys.Help
 		case "quit":

@@ -52,7 +52,7 @@ var (
 			lipgloss.NewStyle().
 				Faint(true).
 				Italic(true).
-				Render("Visit https://github.com/hemanshulabs/forge for the docs."),
+				Render("Visit https://github.com/hemanshulabs/gh-forge for the docs."),
 		),
 		Short:   "A rich terminal UI for GitHub that doesn't break your flow.",
 		Version: "",
@@ -242,6 +242,7 @@ func init() {
 		model := tui.NewModel(
 			config.Location{RepoPath: gitRepoPath, ConfigFlag: cfgFlag},
 			tui.Repositories{GitRepo: gitRepo, GHRepo: &ghRepo},
+			Version,
 		)
 
 		cpuprofile, err := rootCmd.Flags().GetString("cpuprofile")

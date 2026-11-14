@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"reflect"
 	"runtime/debug"
 	"slices"
@@ -48,7 +49,20 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/markdown"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/theme"
+	"github.com/dlvhdr/gh-dash/v4/internal/utils"
 )
+
+var execCommand = exec.Command
+
+type cliUpdateCheckMsg struct {
+	latestVersion string
+	err           error
+}
+
+type cliUpgradeFinishedMsg struct {
+	version string
+	err     error
+}
 
 type Model struct {
 	keys             *keys.KeyMap
@@ -84,7 +98,7 @@ type Repositories struct {
 	GitRepo *gitm.Repository
 }
 
-func NewModel(location config.Location, repos Repositories) Model {
+func NewModel(location config.Location, repos Repositories, appVersion ...string) Model {
 	taskSpinner := spinner.Model{Spinner: spinner.Dot}
 	m := Model{
 		keys:        keys.Keys,
@@ -94,7 +108,9 @@ func NewModel(location config.Location, repos Repositories) Model {
 	}
 
 	version := "dev"
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Sum != "" {
+	if len(appVersion) > 0 && appVersion[0] != "" {
+		version = appVersion[0]
+	} else if info, ok := debug.ReadBuildInfo(); ok && info.Main.Sum != "" {
 		version = info.Main.Version
 	}
 
@@ -392,6 +408,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.footer.SetShowConfirmQuit(true)
+
+		case key.Matches(msg, m.keys.UpdateCLI):
+			cmds = append(cmds, m.checkAndUpgradeCLI())
 
 		case m.ctx.View == config.RepoView:
 			switch {
@@ -752,6 +771,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			now := time.Now()
 			task.FinishedTime = &now
 			m.tasks[msg.TaskId] = task
+			m.footer.SetRightSection(m.renderRunningTask())
 			clear := tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
 				return constants.ClearTaskMsg{TaskId: msg.TaskId}
 			})
@@ -865,6 +885,107 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, currSection.FetchNextPageSectionRows()...)
 		}
 
+	case cliUpdateCheckMsg:
+		task, ok := m.tasks["cli_update"]
+		if !ok {
+			task = context.Task{Id: "cli_update"}
+		}
+
+		if msg.err != nil {
+			task.State = context.TaskError
+			task.Error = fmt.Errorf("failed checking for updates: %w", msg.err)
+			now := time.Now()
+			task.FinishedTime = &now
+			m.tasks["cli_update"] = task
+			m.footer.SetRightSection(m.renderRunningTask())
+			clear := tea.Tick(4*time.Second, func(t time.Time) tea.Msg {
+				return constants.ClearTaskMsg{TaskId: "cli_update"}
+			})
+			return m, clear
+		}
+
+		m.tabs.SetLatestVersion(msg.latestVersion)
+
+		if msg.latestVersion == "" || (!utils.IsNewerVersion(msg.latestVersion, m.ctx.Version) && m.ctx.Version != "dev") {
+			task.State = context.TaskFinished
+			versionDisplay := msg.latestVersion
+			if versionDisplay == "" {
+				versionDisplay = m.ctx.Version
+			}
+			task.FinishedText = fmt.Sprintf("forge is up to date (%s)", versionDisplay)
+			now := time.Now()
+			task.FinishedTime = &now
+			m.tasks["cli_update"] = task
+			m.footer.SetRightSection(m.renderRunningTask())
+			clear := tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
+				return constants.ClearTaskMsg{TaskId: "cli_update"}
+			})
+			return m, clear
+		}
+
+		task.State = context.TaskStart
+		task.StartText = fmt.Sprintf("New version %s available! Updating forge...", msg.latestVersion)
+		m.tasks["cli_update"] = task
+		m.footer.SetRightSection(m.renderRunningTask())
+
+		upgradeCmd := func() tea.Msg {
+			cmd := execCommand("gh", "extension", "upgrade", "forge")
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				fallbackCmd := execCommand("gh", "extension", "install", "hemanshulabs/gh-forge", "--force")
+				fallbackOutput, fallbackErr := fallbackCmd.CombinedOutput()
+				if fallbackErr != nil {
+					errMsg := strings.TrimSpace(string(output))
+					if errMsg == "" {
+						errMsg = strings.TrimSpace(string(fallbackOutput))
+					}
+					if errMsg == "" {
+						errMsg = err.Error()
+					}
+					return cliUpgradeFinishedMsg{
+						version: msg.latestVersion,
+						err:     fmt.Errorf("update failed: %s", errMsg),
+					}
+				}
+			}
+			return cliUpgradeFinishedMsg{
+				version: msg.latestVersion,
+			}
+		}
+
+		return m, upgradeCmd
+
+	case cliUpgradeFinishedMsg:
+		task, ok := m.tasks["cli_update"]
+		if !ok {
+			task = context.Task{Id: "cli_update"}
+		}
+		now := time.Now()
+		task.FinishedTime = &now
+
+		if msg.err != nil {
+			task.State = context.TaskError
+			task.Error = msg.err
+			m.tasks["cli_update"] = task
+			m.footer.SetRightSection(m.renderRunningTask())
+			clear := tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+				return constants.ClearTaskMsg{TaskId: "cli_update"}
+			})
+			return m, clear
+		}
+
+		task.State = context.TaskFinished
+		task.FinishedText = fmt.Sprintf("Updated to %s! Please restart forge.", msg.version)
+		m.tasks["cli_update"] = task
+		m.ctx.Version = msg.version
+		m.tabs.SetLatestVersion(msg.version)
+		m.footer.SetRightSection(m.renderRunningTask())
+
+		clear := tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+			return constants.ClearTaskMsg{TaskId: "cli_update"}
+		})
+		return m, clear
+
 	case tea.MouseClickMsg:
 		if msg.Button != tea.MouseLeft {
 			return m, nil
@@ -884,6 +1005,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return nil
 			}
 			cmds = append(cmds, openCmd)
+		} else if zone.Get("update_cli").InBounds(msg) {
+			cmds = append(cmds, m.checkAndUpgradeCLI())
 		} else if zone.Get("view_" + string(config.NotificationsView)).InBounds(msg) {
 			cmds = append(cmds, m.switchToView(config.NotificationsView))
 		} else if zone.Get("view_" + string(config.PRsView)).InBounds(msg) {
@@ -2120,4 +2243,26 @@ func (m *Model) isMouseOverMainSection(msg tea.MouseWheelMsg) bool {
 	}
 
 	return mouse.X >= 0 && mouse.X < m.ctx.ScreenWidth
+}
+
+func (m *Model) checkAndUpgradeCLI() tea.Cmd {
+	if task, ok := m.tasks["cli_update"]; ok && task.State == context.TaskStart {
+		return nil
+	}
+
+	startCmd := m.ctx.StartTask(context.Task{
+		Id:        "cli_update",
+		StartText: "Checking for updates...",
+		State:     context.TaskStart,
+	})
+
+	fetchCmd := func() tea.Msg {
+		res, err := data.FetchLatestVersion()
+		if err != nil {
+			return cliUpdateCheckMsg{err: err}
+		}
+		return cliUpdateCheckMsg{latestVersion: res.Repository.LatestRelease.TagName}
+	}
+
+	return tea.Batch(startCmd, fetchCmd)
 }

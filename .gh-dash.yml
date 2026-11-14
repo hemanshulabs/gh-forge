@@ -1,36 +1,36 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/hemanshulabs/forge/main/docs/public/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/hemanshulabs/gh-forge/main/docs/public/schema.json
 prSections:
   - title: Mine
-    filters: is:open author:@me repo:hemanshulabs/forge updated:>={{ nowModify "-3w" }} sort:updated-desc
+    filters: is:open author:@me repo:hemanshulabs/gh-forge updated:>={{ nowModify "-3w" }} sort:updated-desc
     layout:
       author:
         hidden: true
       repoName:
         hidden: true
   - title: Review
-    filters: repo:hemanshulabs/forge -author:@me is:open updated:>={{ nowModify "-2.5w" }}
+    filters: repo:hemanshulabs/gh-forge -author:@me is:open updated:>={{ nowModify "-2.5w" }}
     layout:
       repoName:
         hidden: true
   - title: All
-    filters: repo:hemanshulabs/forge
+    filters: repo:hemanshulabs/gh-forge
 issuesSections:
   - title: Open
-    filters: repo:hemanshulabs/forge is:open sort:reactions
+    filters: repo:hemanshulabs/gh-forge is:open sort:reactions
   - title: Bugs
-    filters: repo:hemanshulabs/forge is:open sort:reactions label:bug
+    filters: repo:hemanshulabs/gh-forge is:open sort:reactions label:bug
   - title: Features
-    filters: repo:hemanshulabs/forge is:open sort:reactions label:feat
+    filters: repo:hemanshulabs/gh-forge is:open sort:reactions label:feat
   - title: High
-    filters: repo:hemanshulabs/forge is:open sort:reactions label:high-pri
+    filters: repo:hemanshulabs/gh-forge is:open sort:reactions label:high-pri
   - title: Mid
-    filters: repo:hemanshulabs/forge is:open sort:reactions label:mid-pri
+    filters: repo:hemanshulabs/gh-forge is:open sort:reactions label:mid-pri
   - title: Low
-    filters: repo:hemanshulabs/forge is:open sort:reactions label:low-pri
+    filters: repo:hemanshulabs/gh-forge is:open sort:reactions label:low-pri
   - title: Unlabeled
-    filters: repo:hemanshulabs/forge is:open sort:reactions -label:bug -label:feat
+    filters: repo:hemanshulabs/gh-forge is:open sort:reactions -label:bug -label:feat
   - title: All
-    filters: repo:hemanshulabs/forge sort:reactions
+    filters: repo:hemanshulabs/gh-forge sort:reactions
 
 defaults:
   view: prs

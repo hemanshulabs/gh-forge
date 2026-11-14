@@ -14,6 +14,7 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
 	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 type SectionTab struct {
@@ -166,13 +167,15 @@ func (m *Model) UpdateTabTitles() {
 
 func (m *Model) viewLogo() string {
 	version := lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Render(m.ctx.Version)
-	if m.latestVersion != "" && m.ctx.Version != "dev" && m.ctx.Version != m.latestVersion {
+	if m.latestVersion != "" && utils.IsNewerVersion(m.latestVersion, m.ctx.Version) {
+		updateText := fmt.Sprintf("  New version available: %s [U to update]", m.latestVersion)
 		version = lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			version,
-			lipgloss.NewStyle().
+			zone.Mark("update_cli", lipgloss.NewStyle().
 				Foreground(m.ctx.Styles.Colors.SuccessText).
-				Render("  Update available!"),
+				Bold(true).
+				Render(updateText)),
 		)
 	}
 
@@ -189,6 +192,14 @@ func (m *Model) viewLogo() string {
 			" ",
 			version,
 		))
+}
+
+func (m *Model) SetLatestVersion(version string) {
+	m.latestVersion = version
+}
+
+func (m *Model) LatestVersion() string {
+	return m.latestVersion
 }
 
 func (m *Model) SetAllLoading() []tea.Cmd {

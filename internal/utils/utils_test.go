@@ -150,3 +150,33 @@ func TestGetStylePrefix_ConcatenationPreservesStyle(t *testing.T) {
 		t.Error("Prefix should start with ANSI escape when style has color")
 	}
 }
+
+func TestIsNewerVersion(t *testing.T) {
+	tests := []struct {
+		latest   string
+		current  string
+		expected bool
+	}{
+		{"v0.2.0", "v0.1.0", true},
+		{"v0.1.1", "v0.1.0", true},
+		{"v1.0.0", "v0.9.9", true},
+		{"0.2.0", "0.1.0", true},
+		{"v0.2.0", "0.1.0", true},
+		{"0.2.0", "v0.1.0", true},
+		{"v0.1.0", "v0.1.0", false},
+		{"v0.1.0", "0.1.0", false},
+		{"0.1.0", "v0.1.0", false},
+		{"v0.1.0", "v0.2.0", false},
+		{"v0.1.0", "dev", true},
+		{"v0.1.0", "(devel)", true},
+		{"v0.1.0", "", true},
+		{"", "v0.1.0", false},
+	}
+
+	for _, tt := range tests {
+		actual := IsNewerVersion(tt.latest, tt.current)
+		if actual != tt.expected {
+			t.Errorf("IsNewerVersion(%q, %q) = %v; want %v", tt.latest, tt.current, actual, tt.expected)
+		}
+	}
+}
