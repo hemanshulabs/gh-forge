@@ -1,0 +1,149 @@
+---
+title: Usage
+linkTitle: >-
+  ![icon:terminal](lucide)&nbsp;Usage
+summary: >-
+  Get started using `forge`.
+sidebar:
+  order: 2
+---
+
+To use `forge`, follow these steps after you've [installed it][01]:
+
+1. Run
+
+   ```bash
+   forge
+   ```
+
+2. Press <kbd>?</kbd> for help.
+3. Run `forge --help` for more info:
+
+   ```bash
+   Usage:
+     forge [flags]
+
+   Flags:
+     -c, --config string   use this configuration file (default lookup: a .forge.yml file if inside a git repo, $FORGE_CONFIG env var, or if not set, $XDG_CONFIG_HOME/forge/config.yml)
+         --debug           passing this flag will allow writing debug output to debug.log
+     -h, --help            help for forge
+   ```
+
+## Flags
+
+### `--config`
+
+Specify the path to a configuration file to use for the dashboard. If the configuration file
+doesn't exist or is invalid, `forge` returns an error.
+
+```bash
+forge --config path/to/configuration/file.yml
+```
+
+| Aliases |  Type  | Default                                                                                                                   |
+| :------ | :----: | :------------------------------------------------------------------------------------------------------------------------ |
+| `-c`    | String | `.forge.yml` file if inside a git repo, `$FORGE_CONFIG` env var, or if not set, `$XDG_CONFIG_HOME/forge/config.yml` |
+
+If you don't specify this flag, `forge` uses the default configuration.
+If the file doesn't exist, `forge` will create it.
+
+The location of the default configuration file depends on your system:
+
+1. If `$FORGE_CONFIG` is a non-empty string, `forge` will use this file for
+   its configuration.
+2. If `$FORGE_CONFIG` isn't set and you're in a git repository, it will look for `.forge.yml` or `.forge.yaml`
+   in the repository root.
+3. If neither of the above applies, then:
+   - If `$XDG_CONFIG_HOME` is a non-empty string, the default path is `$XDG_CONFIG_HOME/forge/config.yml`.
+   - If `$XDG_CONFIG_HOME` isn't set, then:
+     - On Linux and macOS systems, the default path is `$HOME/.config/forge/config.yml`.
+     - On Windows systems, the default path is `%USERPROFILE%\.config\forge\config.yml`.
+
+For more information about authoring configurations, see [Configuration][02].
+
+### `--debug`
+
+Specify whether `forge` should write logs to the `debug.log` file in the current directory. By
+default, `forge` doesn't output debug information.
+
+```bash
+forge --debug
+```
+
+| Aliases |  Type   | Default |
+| :------ | :-----: | :------ |
+| (None)  | Boolean | `false` |
+
+When you use this flag, `forge` creates the `debug.log` file in the current directory if it doesn't exist. If the file does exist, `forge` appends new log entries to it.
+
+### `--help`
+
+Use this flag to display the help information for `forge` in the terminal. If you specify this
+flag, `forge` ignores all other flags. It only displays the help information.
+
+```bash
+forge --help
+```
+
+| Aliases |  Type   | Default |
+| :------ | :-----: | :------ |
+| `-h`    | Boolean | `false` |
+
+### `--version`
+
+Use this flag to display the version information for `forge` in the terminal. If you specify this
+flag with the `--config` or `--debug` flags, `forge` ignores them. It only displays the version
+information.
+
+```bash
+forge --version
+```
+
+| Aliases |  Type   | Default |
+| :------ | :-----: | :------ |
+| `-v`    | Boolean | `false` |
+
+When you use this flag, `forge` emits the following information:
+
+```text
+forge version <version>
+commit: <commit_sha>
+built at: <build_timestamp>
+built by: <build_user>
+goos: <operating_system>
+goarch: <cpu_architecture>
+```
+
+- `<version>` is the extension's semantic version without a `v` prefix.
+- `<commit_sha>` is the exact commit SHA the extension was built from.
+- `<build_timestamp>` is the UTC date and time when the extension was built.
+- `<build_user>` is who built the extension. For official releases, this is always `goreleaser`.
+
+For example, the version information for the [v3.7.7 release][03] on Windows with an x64 processor
+is:
+
+```text
+forge version 3.7.7
+commit: 6ce3f89ab0d73dd88e359133699d1cf920f88699
+built at: 2023-04-15T08:42:16Z
+built by: goreleaser
+goos: windows
+goarch: amd64
+```
+
+## Default Keybindings
+
+When you use `forge`, it displays the dashboard as a terminal UI (TUI). In the TUI, you can use
+several commands by pressing key combinations to navigate and interact with the dashboard.
+
+You can press the <kbd>?</kbd> key to toggle the help menu in the UI. The help menu lists the available
+keybindings for the current context.
+
+You can press the <kbd>q</kbd> key to quit the dashboard and return to your normal terminal view.
+
+For more information about the keybindings for the dashboard, see [Keybindings][04].
+
+[01]: /getting-started/
+[02]: /configuration/
+[03]: https://github.com/hemanshulabs/forge/releases/tag/v3.7.7
+[04]: /getting-started/keybindings/

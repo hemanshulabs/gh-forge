@@ -1,0 +1,17 @@
+debug.log
+dist/
+gh-prs
+/gh-dash
+/forge
+*.exe
+.direnv/
+/result*
+.DS_Store
+.killgrave.log
+docs/broken-links.log
+.devbox/
+__debug*
+testdata/gh-schema.graphql
+.task/
+/sponsors.json
+resterm.env.json
