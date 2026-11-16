@@ -37,12 +37,14 @@ notificationsSections:
   - title: Team Mentioned
     filters: "reason:team-mention"
 agentsSections:
-  - title: Copilot
-    filters: "is:open involves:app/copilot-sweeper"
-  - title: Dependabot
-    filters: "is:open author:app/dependabot"
-  - title: All Agents
-    filters: "is:open (author:app/copilot-sweeper or author:app/dependabot or author:app/github-actions)"
+  - title: Reviewer
+    filters: "is:open review-requested:@me"
+  - title: Triage
+    filters: "is:open no:label"
+  - title: Sentinel
+    filters: "is:open label:security"
+  - title: Diagnostics
+    filters: "is:open status:failure"
 repo:
   branchesRefetchIntervalSeconds: 30
   prsRefetchIntervalSeconds: 60

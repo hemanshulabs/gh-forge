@@ -16,3 +16,4 @@ testdata/gh-schema.graphql
 /sponsors.json
 resterm.env.json
 /docs-old
+/prompts

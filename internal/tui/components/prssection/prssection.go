@@ -7,11 +7,13 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
 
 	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prrow"
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/search"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/table"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tasks"
@@ -59,6 +61,23 @@ func NewModel(
 	return m
 }
 
+func GetAgentSectionColumns() []table.Column {
+	return []table.Column{
+		{
+			Title: "Tasks",
+			Grow:  utils.BoolPtr(true),
+		},
+		{
+			Title: "Status",
+			Width: utils.IntPtr(14),
+		},
+		{
+			Title: "Updated",
+			Width: utils.IntPtr(10),
+		},
+	}
+}
+
 func NewAgentModel(
 	id int,
 	ctx *context.ProgramContext,
@@ -68,7 +87,104 @@ func NewAgentModel(
 ) Model {
 	m := NewModel(id, ctx, cfg, lastUpdated, createdAt)
 	m.Type = AgentSectionType
+	m.Table.Columns = GetAgentSectionColumns()
+	m.Table.SetContentHeight(1)
+	m.SingularForm = "task"
+	m.PluralForm = "tasks"
+	m.SearchBar = search.NewModel(ctx, search.SearchOptions{
+		Placeholder: "Filter tasks (tab/shift+tab to switch section)...",
+	})
 	return m
+}
+
+func (m Model) buildAgentRows() []table.Row {
+	var rows []table.Row
+	currItem := m.Table.GetCurrItem()
+	for i, currPr := range m.Prs {
+		rows = append(rows, m.toAgentRow(currPr, currItem == i))
+	}
+	if rows == nil {
+		rows = []table.Row{}
+	}
+	return rows
+}
+
+func (m Model) toAgentRow(pr prrow.Data, isSelected bool) table.Row {
+	if pr.Primary == nil {
+		return table.Row{"", "", ""}
+	}
+
+	// 1. Determine status and bullet matching reference design
+	var status string
+	var statusColor string
+	var bullet string
+	var bulletColor string
+
+	isCiPending := false
+	if len(pr.Primary.Commits.Nodes) > 0 {
+		state := string(pr.Primary.Commits.Nodes[0].Commit.StatusCheckRollup.State)
+		if state == "PENDING" || state == "EXPECTED" {
+			isCiPending = true
+		}
+	}
+
+	switch {
+	case isCiPending:
+		status = "Working"
+		statusColor = "#61AFEF" // blue / cyan
+		bullet = constants.DotIcon
+		bulletColor = "#61AFEF"
+	case pr.Primary.ReviewDecision == "CHANGES_REQUESTED":
+		status = "Needs you"
+		statusColor = "#E06C75" // red / coral
+		bullet = constants.DotIcon
+		bulletColor = "#E06C75"
+	case pr.Primary.ReviewRequests.TotalCount > 0:
+		status = "Needs you"
+		statusColor = "#E5C07B" // amber
+		bullet = constants.DotIcon
+		bulletColor = "#E5C07B"
+	case pr.Primary.ReviewDecision == "APPROVED":
+		status = "Ready"
+		statusColor = "#98C379" // green
+		bullet = "○"
+		bulletColor = "#98C379"
+	case pr.Primary.IsDraft:
+		status = "Inactive"
+		statusColor = "#5C6370" // dim gray
+		bullet = "○"
+		bulletColor = "#5C6370"
+	default:
+		status = "Inactive"
+		statusColor = "#5C6370"
+		bullet = constants.DotIcon
+		bulletColor = "#42A0FA" // crisp blue dot matching reference
+	}
+
+	bulletStyled := lipgloss.NewStyle().Foreground(lipgloss.Color(bulletColor)).Render(bullet)
+	titleText := pr.Primary.Title
+	titleStyle := lipgloss.NewStyle()
+	if isSelected {
+		titleStyle = titleStyle.Bold(true)
+	}
+	taskCell := fmt.Sprintf("%s %s", bulletStyled, titleStyle.Render(titleText))
+
+	statusCell := lipgloss.NewStyle().Foreground(lipgloss.Color(statusColor)).Render(status)
+
+	elapsed := utils.TimeElapsed(pr.Primary.UpdatedAt)
+	var updatedText string
+	if elapsed == "now" {
+		updatedText = "just now"
+	} else {
+		updatedText = fmt.Sprintf("%s ago", elapsed)
+	}
+	updatedCell := lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render(updatedText)
+
+	return table.Row{
+		taskCell,
+		statusCell,
+		updatedCell,
+	}
 }
 
 func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
@@ -421,6 +537,10 @@ func GetSectionColumns(
 }
 
 func (m Model) BuildRows() []table.Row {
+	if m.Type == AgentSectionType {
+		return m.buildAgentRows()
+	}
+
 	var rows []table.Row
 	currItem := m.Table.GetCurrItem()
 	for i, currPr := range m.Prs {
@@ -616,10 +736,16 @@ func assigneesContains(assignees []data.Assignee, assignee data.Assignee) bool {
 }
 
 func (m Model) GetItemSingularForm() string {
+	if m.Type == AgentSectionType {
+		return "task"
+	}
 	return "PR"
 }
 
 func (m Model) GetItemPluralForm() string {
+	if m.Type == AgentSectionType {
+		return "tasks"
+	}
 	return "PRs"
 }
 

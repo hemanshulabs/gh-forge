@@ -2,6 +2,7 @@ package tabs
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -11,6 +12,7 @@ import (
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/carousel"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
+	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
 	"github.com/dlvhdr/gh-dash/v4/internal/utils"
@@ -150,6 +152,28 @@ func (m *Model) UpdateTabTitles() {
 	for i, tab := range m.sectionTabs {
 		cfg := tab.section.GetConfig()
 		title := cfg.Title
+		if m.ctx.View == "agents" {
+			switch strings.ToLower(title) {
+			case "all":
+				title = constants.AgentIcon + " All"
+			case "needs you":
+				title = constants.ChangesRequestedIcon + " Needs you"
+			case "working":
+				title = constants.WaitingIcon + " Working"
+			case "ready":
+				title = constants.ApprovedIcon + " Ready"
+			case "inactive":
+				title = constants.DraftIcon + " Inactive"
+			case "reviewer":
+				title = constants.CodeReviewIcon + " Reviewer"
+			case "triage":
+				title = constants.LabelsIcon + " Triage"
+			case "sentinel":
+				title = constants.SecurityIcon + " Sentinel"
+			case "diagnostics":
+				title = constants.WorkflowIcon + " Diagnostics"
+			}
+		}
 		if tab.section.GetIsLoading() {
 			title = fmt.Sprintf("%s %s", title, m.sectionTabs[i].spinner.View())
 		} else if m.ctx.Config.Theme.Ui.SectionsShowCount {

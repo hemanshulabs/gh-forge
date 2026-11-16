@@ -512,16 +512,20 @@ func (parser ConfigParser) getDefaultConfig() Config {
 		},
 		AgentsSections: []AgentsSectionConfig{
 			{
-				Title:   "Copilot",
-				Filters: "is:open involves:app/copilot-sweeper",
+				Title:   "Reviewer",
+				Filters: "is:open review-requested:@me",
 			},
 			{
-				Title:   "Dependabot",
-				Filters: "is:open author:app/dependabot",
+				Title:   "Triage",
+				Filters: "is:open no:label",
 			},
 			{
-				Title:   "All Agents",
-				Filters: "is:open (author:app/copilot-sweeper or author:app/dependabot or author:app/github-actions)",
+				Title:   "Sentinel",
+				Filters: "is:open label:security",
+			},
+			{
+				Title:   "Diagnostics",
+				Filters: "is:open status:failure",
 			},
 		},
 		Keybindings: Keybindings{

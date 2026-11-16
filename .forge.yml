@@ -31,6 +31,17 @@ issuesSections:
     filters: repo:hemanshulabs/gh-forge is:open sort:reactions -label:bug -label:feat
   - title: All
     filters: repo:hemanshulabs/gh-forge sort:reactions
+agentsSections:
+  - title: All
+    filters: repo:hemanshulabs/gh-forge is:open
+  - title: Reviewer
+    filters: repo:hemanshulabs/gh-forge is:open review-requested:@me
+  - title: Triage
+    filters: repo:hemanshulabs/gh-forge is:open no:label
+  - title: Sentinel
+    filters: repo:hemanshulabs/gh-forge is:open label:security
+  - title: Diagnostics
+    filters: repo:hemanshulabs/gh-forge is:open status:failure
 
 defaults:
   view: prs
