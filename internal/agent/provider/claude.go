@@ -58,12 +58,13 @@ func (c *ClaudeCLIAdapter) Complete(ctx context.Context, req CompletionRequest) 
 	fullPrompt.WriteString("\n\nUSER PROMPT:\n")
 	fullPrompt.WriteString(req.UserPrompt)
 
-	cmdArgs := []string{"-p", fullPrompt.String()}
+	cmdArgs := []string{"-p"}
 	if req.Model != "" {
-		cmdArgs = append([]string{"--model", req.Model}, cmdArgs...)
+		cmdArgs = append(cmdArgs, "--model", req.Model)
 	}
 
 	cmd := exec.CommandContext(ctx, c.binaryPath, cmdArgs...)
+	cmd.Stdin = strings.NewReader(fullPrompt.String())
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
