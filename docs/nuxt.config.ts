@@ -1,6 +1,11 @@
 export default defineNuxtConfig({
   extends: ['docus'],
   css: ['~/assets/css/main.css'],
+  docus: {
+    assistant: {
+      enabled: false
+    }
+  },
   app: {
     head: {
       title: 'Forge - A Rich Terminal UI for GitHub',
