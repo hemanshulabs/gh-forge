@@ -32,7 +32,7 @@ issuesSections:
   - title: All
     filters: repo:hemanshulabs/gh-forge sort:reactions
 agentsSections:
-  - title: All
+  - title: Janitor
     filters: repo:hemanshulabs/gh-forge is:open
   - title: Reviewer
     filters: repo:hemanshulabs/gh-forge is:open review-requested:@me

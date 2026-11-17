@@ -49,6 +49,15 @@ Available agents:
 
 		fmt.Println(headerStyle.Render(fmt.Sprintf("\n%s FORGE AI SPECIALIZED AGENTS", constants.AgentIcon)))
 
+		fmt.Println(sectionStyle.Render("Lead Orchestrator:"))
+		janitorCfg := roles.NewJanitorConfig()
+		fmt.Printf("  %s %s %s\n    %s\n",
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#C77DFF")).Render(constants.JanitorIcon),
+			lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFFFFF")).Render("Janitor"),
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#C77DFF")).Render("(Primary Orchestrator & Task Dispatcher)"),
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render(janitorCfg.Description),
+		)
+
 		agentList := []struct {
 			icon string
 			name string
@@ -61,7 +70,7 @@ Available agents:
 			{icon: constants.WorkflowIcon, name: "Diagnostics", cmd: "forge diagnose (planned)", desc: roles.NewDiagnosticsConfig().Description},
 		}
 
-		fmt.Println(sectionStyle.Render("Active Agents:"))
+		fmt.Println(sectionStyle.Render("Specialized Execution Workers:"))
 		var agentsText strings.Builder
 		for _, a := range agentList {
 			agentsText.WriteString(fmt.Sprintf("  %s %s %s\n    %s\n",

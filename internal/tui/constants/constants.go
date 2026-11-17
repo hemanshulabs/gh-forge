@@ -30,6 +30,7 @@ const (
 
 	ApprovedIcon         = "󰄬"
 	AgentIcon            = "󰚩"
+	JanitorIcon          = "󰣖"
 	ChangesRequestedIcon = ""
 	DotIcon              = ""
 	SmallDotIcon         = "⋅"

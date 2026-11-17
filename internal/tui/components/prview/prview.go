@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/dlvhdr/gh-dash/v4/internal/config"
 	"github.com/dlvhdr/gh-dash/v4/internal/data"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
 	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/carousel"
@@ -135,9 +136,17 @@ func (m Model) View() string {
 	body := strings.Builder{}
 	switch m.carousel.SelectedItem() {
 	case tabs[0]:
-		body.WriteString(m.viewOverviewTab())
+		if m.ctx != nil && m.ctx.View == config.AgentsView {
+			body.WriteString(m.viewAgentOverviewTab())
+		} else {
+			body.WriteString(m.viewOverviewTab())
+		}
 	case tabs[1]:
-		body.WriteString(m.renderActivity())
+		if m.ctx != nil && m.ctx.View == config.AgentsView {
+			body.WriteString(m.renderAgentActivity())
+		} else {
+			body.WriteString(m.renderActivity())
+		}
 	case tabs[2]:
 		body.WriteString(m.renderCommits())
 	case tabs[3]:
@@ -162,9 +171,13 @@ func (m *Model) viewHeader() string {
 
 	header.WriteString(m.renderTitle())
 	header.WriteString("\n\n")
-	header.WriteString(m.renderBranches())
-	header.WriteString("\n\n")
-	header.WriteString(m.renderAuthor())
+	if m.ctx != nil && m.ctx.View == config.AgentsView {
+		header.WriteString(m.renderAgentBadges())
+	} else {
+		header.WriteString(m.renderBranches())
+		header.WriteString("\n\n")
+		header.WriteString(m.renderAuthor())
+	}
 	header.WriteString("\n\n")
 	header.WriteString(lipgloss.NewStyle().Width(m.width).
 		Border(lipgloss.NormalBorder(), false, false, true, false).
@@ -174,6 +187,307 @@ func (m *Model) viewHeader() string {
 
 	header.WriteString("\n")
 	return header.String()
+}
+
+func (m *Model) renderAgentBadges() string {
+	if !m.hasData() {
+		return ""
+	}
+
+	janitorBadge := lipgloss.NewStyle().
+		Background(lipgloss.Color("#3B2166")).
+		Foreground(lipgloss.Color("#C77DFF")).
+		Padding(0, 1).
+		Bold(true).
+		Render(fmt.Sprintf("%s Janitor", constants.JanitorIcon))
+
+	arrow := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#5C6370")).
+		Render(" 󰁕 ")
+
+	workerName, workerIcon, workerColor := m.getAssignedWorker()
+	workerBadge := lipgloss.NewStyle().
+		Background(lipgloss.Color("#1E2A38")).
+		Foreground(lipgloss.Color(workerColor)).
+		Padding(0, 1).
+		Bold(true).
+		Render(fmt.Sprintf("%s %s", workerIcon, workerName))
+
+	statusText, statusColor := m.getAgentTaskStatus()
+	statusBadge := lipgloss.NewStyle().
+		Background(lipgloss.Color(statusColor)).
+		Foreground(lipgloss.Color("#1E1E2E")).
+		Padding(0, 1).
+		Bold(true).
+		Render(statusText)
+
+	branches := lipgloss.NewStyle().
+		Foreground(m.ctx.Theme.SecondaryText).
+		Render(m.pr.Data.Primary.BaseRefName + "  " + m.pr.Data.Primary.HeadRefName)
+
+	line1 := lipgloss.JoinHorizontal(lipgloss.Left, " ", janitorBadge, arrow, workerBadge, "  ", statusBadge)
+	line2 := lipgloss.JoinHorizontal(lipgloss.Left, " ", branches)
+
+	return lipgloss.JoinVertical(lipgloss.Left, line1, "", line2)
+}
+
+func (m *Model) getAssignedWorker() (string, string, string) {
+	if m.pr == nil || m.pr.Data == nil || m.pr.Data.Primary == nil {
+		return "Reviewer Agent", constants.CodeReviewIcon, "#02F9FB"
+	}
+
+	primary := m.pr.Data.Primary
+	for _, l := range primary.Labels.Nodes {
+		lname := strings.ToLower(l.Name)
+		if strings.Contains(lname, "security") || strings.Contains(lname, "cve") || strings.Contains(lname, "vulnerability") {
+			return "Sentinel Agent", constants.SecurityIcon, "#FF5555"
+		}
+	}
+
+	if len(primary.Commits.Nodes) > 0 {
+		state := string(primary.Commits.Nodes[0].Commit.StatusCheckRollup.State)
+		if state == "FAILURE" || state == "ERROR" {
+			return "Diagnostics Agent", constants.WorkflowIcon, "#F1FA8C"
+		}
+	}
+
+	if len(primary.Labels.Nodes) == 0 && primary.ReviewRequests.TotalCount == 0 {
+		return "Triage Agent", constants.LabelsIcon, "#50FA7B"
+	}
+
+	return "Reviewer Agent", constants.CodeReviewIcon, "#02F9FB"
+}
+
+func (m *Model) getAgentTaskStatus() (string, string) {
+	if m.pr == nil || m.pr.Data == nil || m.pr.Data.Primary == nil {
+		return "Inactive", "#5C6370"
+	}
+
+	primary := m.pr.Data.Primary
+	isCiPending := false
+	if len(primary.Commits.Nodes) > 0 {
+		state := string(primary.Commits.Nodes[0].Commit.StatusCheckRollup.State)
+		if state == "PENDING" || state == "EXPECTED" {
+			isCiPending = true
+		}
+	}
+
+	switch {
+	case isCiPending:
+		return "Working", "#61AFEF"
+	case primary.ReviewDecision == "CHANGES_REQUESTED":
+		return "Needs you", "#E06C75"
+	case primary.ReviewRequests.TotalCount > 0:
+		return "Needs you", "#E5C07B"
+	case primary.ReviewDecision == "APPROVED":
+		return "Ready", "#98C379"
+	case primary.IsDraft:
+		return "Inactive", "#5C6370"
+	default:
+		return "Inactive", "#5C6370"
+	}
+}
+
+func (m *Model) viewAgentOverviewTab() string {
+	width := m.getIndentedContentWidth()
+	body := strings.Builder{}
+
+	workerName, workerIcon, workerColor := m.getAssignedWorker()
+	statusText, statusColor := m.getAgentTaskStatus()
+
+	body.WriteString(m.renderJanitorHubCard(width, workerName, workerIcon, workerColor, statusText, statusColor))
+	body.WriteString("\n\n")
+
+	body.WriteString(m.renderAgentPhasesTracker(width, workerName, statusText))
+	body.WriteString("\n\n")
+
+	body.WriteString(m.renderAgentScopeCard(width, workerName))
+	body.WriteString("\n\n")
+
+	body.WriteString(m.renderAgentCliCard(width))
+
+	if m.editor.Mode() != cmpcontroller.ModeNone {
+		body.WriteString("\n\n")
+		body.WriteString(m.ctx.Styles.Sidebar.InputBox.Render(m.editor.View()))
+	}
+
+	return body.String()
+}
+
+func (m *Model) renderJanitorHubCard(width int, workerName, workerIcon, workerColor, statusText, statusColor string) string {
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#C77DFF"))
+
+	header := lipgloss.JoinHorizontal(lipgloss.Left,
+		titleStyle.Render(fmt.Sprintf("%s Janitor Orchestrator", constants.JanitorIcon)),
+		"  ",
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render("• Primary Supervisor"),
+	)
+
+	desc := "Janitor actively coordinates repository tasks. It ingests PR events, sanitizes diff noise, routes work to specialized agents, and tracks multi-phase execution."
+
+	meta1 := fmt.Sprintf("%s %s",
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render("Assigned:"),
+		lipgloss.NewStyle().Foreground(lipgloss.Color(workerColor)).Bold(true).Render(workerIcon+" "+workerName),
+	)
+	meta2 := fmt.Sprintf("%s %s",
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render("Phase State:"),
+		lipgloss.NewStyle().Foreground(lipgloss.Color(statusColor)).Bold(true).Render(statusText),
+	)
+	meta3 := fmt.Sprintf("%s %s",
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render("Mode:"),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#98C379")).Render("Read-Only & Suggestion-Only"),
+	)
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		header,
+		"",
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Width(width-4).Render(desc),
+		"",
+		lipgloss.JoinHorizontal(lipgloss.Left, meta1, "   ", meta2, "   ", meta3),
+	)
+
+	return lipgloss.NewStyle().
+		Width(width).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#C77DFF")).
+		Padding(0, 1).
+		Render(content)
+}
+
+func (m *Model) renderAgentPhasesTracker(width int, workerName, statusText string) string {
+	title := m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Bold(true).Render(
+		fmt.Sprintf("%s Agent Working Phases", constants.WorkflowIcon),
+	)
+
+	p1Status := lipgloss.NewStyle().Foreground(lipgloss.Color("#98C379")).Bold(true).Render(" Phase 1: Context Ingestion & Lockfile Sanitization")
+	p1Desc := lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render("  • Filtered dependency noise (go.sum, devbox.lock), token estimation complete.")
+
+	p2Status := lipgloss.NewStyle().Foreground(lipgloss.Color("#98C379")).Bold(true).Render(fmt.Sprintf(" Phase 2: Janitor Task Triage & Delegation 󰁕 @%s", workerName))
+	p2Desc := lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render(fmt.Sprintf("  • Classified diff scope; delegated deep analysis to %s.", workerName))
+
+	var p3Status, p3Desc string
+	if statusText == "Working" {
+		p3Status = lipgloss.NewStyle().Foreground(lipgloss.Color("#61AFEF")).Bold(true).Render(" Phase 3: Deep Rule Analysis (In Progress)")
+		p3Desc = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render("  • Active inspection: evaluating code style, risks, regressions, and security rules.")
+	} else {
+		p3Status = lipgloss.NewStyle().Foreground(lipgloss.Color("#98C379")).Bold(true).Render(" Phase 3: Deep Rule Analysis & Security Scan")
+		p3Desc = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render("  • Completed diff inspection, style checks, and risk verification.")
+	}
+
+	var p4Status, p4Desc string
+	switch statusText {
+	case "Ready":
+		p4Status = lipgloss.NewStyle().Foreground(lipgloss.Color("#98C379")).Bold(true).Render(" Phase 4: Output Synthesis & Verification (Ready)")
+		p4Desc = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render("  • Verified against JSON schema. Findings prepared, ready for review.")
+	case "Needs you":
+		p4Status = lipgloss.NewStyle().Foreground(lipgloss.Color("#E06C75")).Bold(true).Render(" Phase 4: Output Synthesis (Needs Developer Attention)")
+		p4Desc = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render("  • Changes requested or reviews required before completion handoff.")
+	case "Working":
+		p4Status = lipgloss.NewStyle().Foreground(lipgloss.Color("#61AFEF")).Bold(true).Render(" Phase 4: Output Synthesis & Verification (Pending Analysis)")
+		p4Desc = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render("  • Awaiting completion of worker analysis passes.")
+	default:
+		p4Status = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Bold(true).Render("○ Phase 4: Output Synthesis (Idle / Inactive)")
+		p4Desc = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render("  • Task is in queue or waiting for activity.")
+	}
+
+	phasesContent := lipgloss.JoinVertical(
+		lipgloss.Left,
+		title,
+		"",
+		p1Status,
+		p1Desc,
+		"",
+		p2Status,
+		p2Desc,
+		"",
+		p3Status,
+		p3Desc,
+		"",
+		p4Status,
+		p4Desc,
+	)
+
+	return lipgloss.NewStyle().
+		Width(width).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#6272A4")).
+		Padding(0, 1).
+		Render(phasesContent)
+}
+
+func (m *Model) renderAgentScopeCard(width int, workerName string) string {
+	title := m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Bold(true).Render(
+		fmt.Sprintf("%s Scope & Safety Constraints", constants.CodeReviewIcon),
+	)
+
+	var filesCount, addCount, delCount int
+	if m.pr != nil && m.pr.Data != nil && m.pr.Data.Primary != nil {
+		addCount = m.pr.Data.Primary.Additions
+		delCount = m.pr.Data.Primary.Deletions
+		if m.pr.Data.IsEnriched {
+			filesCount = m.pr.Data.Enriched.Files.TotalCount
+		}
+	}
+
+	statsText := fmt.Sprintf("Files in scope: %s  •  Lines: %s %s",
+		lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("%d files", filesCount)),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#98C379")).Render(fmt.Sprintf("+%d", addCount)),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#E06C75")).Render(fmt.Sprintf("-%d", delCount)),
+	)
+
+	safetyTitle := lipgloss.NewStyle().Foreground(lipgloss.Color("#42A0FA")).Bold(true).Render("Safety Guardrails:")
+	safety1 := "• Read-Only Context: Agent cannot push commits, merge, or force-push without user opt-in."
+	safety2 := "• Suggestion-Only Default: Findings are formatted as suggestions for user confirmation."
+	safety3 := "• Schema Conformance: Output adheres strictly to the Forge Agent JSON schema."
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		title,
+		"",
+		statsText,
+		"",
+		safetyTitle,
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render(safety1),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render(safety2),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render(safety3),
+	)
+
+	return lipgloss.NewStyle().
+		Width(width).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#42A0FA")).
+		Padding(0, 1).
+		Render(content)
+}
+
+func (m *Model) renderAgentCliCard(width int) string {
+	prNum := 0
+	if m.pr != nil && m.pr.Data != nil && m.pr.Data.Primary != nil {
+		prNum = m.pr.Data.Primary.Number
+	}
+
+	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#50FA7B")).Render(" Quick CLI Commands:")
+	cmd1 := fmt.Sprintf("  • Review:  forge review %d --dry-run", prNum)
+	cmd2 := fmt.Sprintf("  • Scan:    forge scan %d --format terminal", prNum)
+	cmd3 := fmt.Sprintf("  • Status:  forge agents")
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		header,
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render(cmd1),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ABB2BF")).Render(cmd2),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render(cmd3),
+	)
+
+	return lipgloss.NewStyle().
+		Width(width).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#50FA7B")).
+		Padding(0, 1).
+		Render(content)
 }
 
 func (m *Model) viewOverviewTab() string {

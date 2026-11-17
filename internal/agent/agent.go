@@ -8,6 +8,7 @@ import (
 type AgentRole string
 
 const (
+	RoleJanitor     AgentRole = "Janitor"
 	RoleReviewer    AgentRole = "Reviewer"
 	RoleTriage      AgentRole = "Triage"
 	RoleSentinel    AgentRole = "Sentinel"

@@ -154,6 +154,8 @@ func (m *Model) UpdateTabTitles() {
 		title := cfg.Title
 		if m.ctx.View == "agents" {
 			switch strings.ToLower(title) {
+			case "janitor":
+				title = constants.JanitorIcon + " Janitor"
 			case "all":
 				title = constants.AgentIcon + " All"
 			case "needs you":
