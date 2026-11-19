@@ -6,7 +6,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	log "charm.land/log/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
 )
 
 type PRKeyMap struct {
@@ -29,6 +29,11 @@ type PRKeyMap struct {
 	ApproveWorkflows     key.Binding
 	ToggleSmartFiltering key.Binding
 	ViewIssues           key.Binding
+	AssignAgent          key.Binding
+	AgentConfig          key.Binding
+	AgentHistory         key.Binding
+	AssignTaskAgent      key.Binding
+	AgentTaskConfig      key.Binding
 }
 
 var PRKeys = PRKeyMap{
@@ -108,6 +113,26 @@ var PRKeys = PRKeyMap{
 		key.WithKeys("s"),
 		key.WithHelp("s", "switch to issues"),
 	),
+	AssignAgent: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a", "assign agent"),
+	),
+	AgentConfig: key.NewBinding(
+		key.WithKeys("A"),
+		key.WithHelp("A", "agent CLI config"),
+	),
+	AgentHistory: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "view agent reply"),
+	),
+	AssignTaskAgent: key.NewBinding(
+		key.WithKeys("g"),
+		key.WithHelp("g", "assign agent to task"),
+	),
+	AgentTaskConfig: key.NewBinding(
+		key.WithKeys("G"),
+		key.WithHelp("G", "agent CLI config"),
+	),
 }
 
 func PRFullHelp() []key.Binding {
@@ -131,6 +156,14 @@ func PRFullHelp() []key.Binding {
 		PRKeys.ToggleSmartFiltering,
 		PRKeys.ViewIssues,
 	}
+}
+
+func AgentFullHelp() []key.Binding {
+	return []key.Binding{PRKeys.AssignAgent, PRKeys.AgentConfig, PRKeys.AgentHistory}
+}
+
+func AgentTaskHelp() []key.Binding {
+	return []key.Binding{PRKeys.AssignTaskAgent, PRKeys.AgentTaskConfig}
 }
 
 func rebindPRKeys(keys []config.Keybinding) error {

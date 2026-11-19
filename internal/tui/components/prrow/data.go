@@ -3,7 +3,7 @@ package prrow
 import (
 	"time"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
 )
 
 type Data struct {

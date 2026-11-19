@@ -7,7 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	log "charm.land/log/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
 )
 
 // NotificationSubjectType indicates what type of content is being viewed in the notifications view
@@ -66,14 +66,16 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	var additionalKeys []key.Binding
 	var customKeys []key.Binding
+	var taskAgentKeys []key.Binding
 
 	if len(CustomUniversalBindings) > 0 {
 		customKeys = append(customKeys, CustomUniversalBindings...)
 	}
 
 	switch k.viewType {
-	case config.PRsView, config.AgentsView:
+	case config.PRsView:
 		additionalKeys = PRFullHelp()
+		taskAgentKeys = AgentTaskHelp()
 		customKeys = append(customKeys, CustomPRBindings...)
 	case config.RepoView:
 		additionalKeys = BranchFullHelp()
@@ -92,6 +94,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		}
 	default:
 		additionalKeys = IssueFullHelp()
+		taskAgentKeys = AgentTaskHelp()
 		customKeys = append(customKeys, CustomIssueBindings...)
 	}
 
@@ -99,6 +102,9 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		k.NavigationKeys(),
 		k.AppKeys(),
 		additionalKeys,
+	}
+	if len(taskAgentKeys) > 0 {
+		sections = append(sections, taskAgentKeys)
 	}
 
 	if len(customKeys) > 0 {

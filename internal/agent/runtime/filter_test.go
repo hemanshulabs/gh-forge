@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/runtime"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/runtime"
 )
 
 func TestFilterFindings(t *testing.T) {

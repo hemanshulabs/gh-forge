@@ -1,26 +1,30 @@
 package prssection
 
 import (
+	stdcontext "context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 	"charm.land/log/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/search"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/table"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tasks"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
-	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/provider"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/search"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/section"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/table"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/tasks"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/keys"
+	"github.com/hemanshulabs/gh-forge/v4/internal/utils"
 )
 
 const (
@@ -30,8 +34,9 @@ const (
 
 type Model struct {
 	section.BaseModel
-	Prs []prrow.Data
-	cfg config.PrsSectionConfig
+	Prs         []prrow.Data
+	cfg         config.PrsSectionConfig
+	HistoryOnly bool
 }
 
 func NewModel(
@@ -69,12 +74,21 @@ func GetAgentSectionColumns() []table.Column {
 		},
 		{
 			Title: "Status",
-			Width: utils.IntPtr(14),
+			Width: utils.IntPtr(20),
 		},
 		{
 			Title: "Updated",
 			Width: utils.IntPtr(10),
 		},
+	}
+}
+
+func GetAgentHistoryColumns() []table.Column {
+	return []table.Column{
+		{Title: "Task", Grow: utils.BoolPtr(true)},
+		{Title: "Role", Width: utils.IntPtr(13)},
+		{Title: "Status", Width: utils.IntPtr(16)},
+		{Title: "Agent reply", Width: utils.IntPtr(38)},
 	}
 }
 
@@ -87,8 +101,14 @@ func NewAgentModel(
 ) Model {
 	m := NewModel(id, ctx, cfg, lastUpdated, createdAt)
 	m.Type = AgentSectionType
-	m.Table.Columns = GetAgentSectionColumns()
+	if strings.EqualFold(cfg.Title, "history") {
+		m.HistoryOnly = true
+		m.Table.Columns = GetAgentHistoryColumns()
+	} else {
+		m.Table.Columns = GetAgentSectionColumns()
+	}
 	m.Table.SetContentHeight(1)
+	m.Table.DisableSelectedBackground = true
 	m.SingularForm = "task"
 	m.PluralForm = "tasks"
 	m.SearchBar = search.NewModel(ctx, search.SearchOptions{
@@ -98,10 +118,23 @@ func NewAgentModel(
 }
 
 func (m Model) buildAgentRows() []table.Row {
+	if m.HistoryOnly {
+		var rows []table.Row
+		for i, task := range m.agentHistoryTasks() {
+			rows = append(rows, m.toAgentHistoryRow(task, m.Table.GetCurrItem() == i))
+		}
+		if rows == nil {
+			return []table.Row{}
+		}
+		return rows
+	}
 	var rows []table.Row
 	currItem := m.Table.GetCurrItem()
 	for i, currPr := range m.Prs {
 		rows = append(rows, m.toAgentRow(currPr, currItem == i))
+	}
+	for i, task := range m.agentQueueTasks() {
+		rows = append(rows, m.toAgentQueueRow(task, currItem == len(m.Prs)+i))
 	}
 	if rows == nil {
 		rows = []table.Row{}
@@ -109,16 +142,62 @@ func (m Model) buildAgentRows() []table.Row {
 	return rows
 }
 
+func (m Model) agentHistoryTasks() []context.AgentTask {
+	tasks := make([]context.AgentTask, 0, len(m.Ctx.AgentTasks))
+	for _, task := range m.Ctx.AgentTasks {
+		tasks = append(tasks, task)
+	}
+	slices.SortFunc(tasks, func(a, b context.AgentTask) int {
+		if a.UpdatedAt.After(b.UpdatedAt) {
+			return -1
+		}
+		if a.UpdatedAt.Before(b.UpdatedAt) {
+			return 1
+		}
+		return 0
+	})
+	return tasks
+}
+
+func (m Model) toAgentHistoryRow(task context.AgentTask, selected bool) table.Row {
+	style := lipgloss.NewStyle().Foreground(m.Ctx.Theme.SecondaryText)
+	if selected {
+		style = style.Foreground(m.Ctx.Theme.PrimaryText).Bold(true)
+	}
+	target := "PR"
+	if task.Kind == "issue" {
+		target = "Issue"
+	}
+	text := fmt.Sprintf("%s #%d  %s  ·  %s", target, task.Number, task.Repo, task.Title)
+	reply := strings.TrimSpace(strings.ReplaceAll(task.Summary, "\n", " "))
+	if reply == "" {
+		reply = task.Error
+	}
+	if len(reply) > 120 {
+		reply = reply[:117] + "..."
+	}
+	return table.Row{style.Render(text), task.Role, agentTaskStatusLabel(task.Status), reply}
+}
+
+func agentTaskStatusLabel(status string) string {
+	switch status {
+	case "needs_input":
+		return "needs input"
+	case "choose CLI":
+		return "waiting for CLI"
+	default:
+		return status
+	}
+}
+
 func (m Model) toAgentRow(pr prrow.Data, isSelected bool) table.Row {
 	if pr.Primary == nil {
 		return table.Row{"", "", ""}
 	}
 
-	// 1. Determine status and bullet matching reference design
 	var status string
-	var statusColor string
-	var bullet string
-	var bulletColor string
+	var statusFg compat.AdaptiveColor
+	var icon string
 
 	isCiPending := false
 	if len(pr.Primary.Commits.Nodes) > 0 {
@@ -130,46 +209,45 @@ func (m Model) toAgentRow(pr prrow.Data, isSelected bool) table.Row {
 
 	switch {
 	case isCiPending:
-		status = "Working"
-		statusColor = "#61AFEF" // blue / cyan
-		bullet = constants.DotIcon
-		bulletColor = "#61AFEF"
+		status = "Checks pending"
+		statusFg = m.Ctx.Styles.Colors.OpenPR
+		icon = constants.WaitingIcon
 	case pr.Primary.ReviewDecision == "CHANGES_REQUESTED":
-		status = "Needs you"
-		statusColor = "#E06C75" // red / coral
-		bullet = constants.DotIcon
-		bulletColor = "#E06C75"
+		status = "Changes requested"
+		statusFg = m.Ctx.Theme.ErrorText
+		icon = constants.ActionRequiredIcon
 	case pr.Primary.ReviewRequests.TotalCount > 0:
-		status = "Needs you"
-		statusColor = "#E5C07B" // amber
-		bullet = constants.DotIcon
-		bulletColor = "#E5C07B"
+		status = "Review requested"
+		statusFg = m.Ctx.Theme.WarningText
+		icon = constants.ActionRequiredIcon
 	case pr.Primary.ReviewDecision == "APPROVED":
-		status = "Ready"
-		statusColor = "#98C379" // green
-		bullet = "○"
-		bulletColor = "#98C379"
+		status = "Approved"
+		statusFg = m.Ctx.Theme.SuccessText
+		icon = constants.ApprovedIcon
 	case pr.Primary.IsDraft:
-		status = "Inactive"
-		statusColor = "#5C6370" // dim gray
-		bullet = "○"
-		bulletColor = "#5C6370"
+		status = "Draft"
+		statusFg = m.Ctx.Theme.FaintText
+		icon = constants.DraftIcon
 	default:
-		status = "Inactive"
-		statusColor = "#5C6370"
-		bullet = constants.DotIcon
-		bulletColor = "#42A0FA" // crisp blue dot matching reference
+		status = "Open"
+		statusFg = m.Ctx.Theme.FaintText
+		icon = constants.DraftIcon
 	}
 
-	bulletStyled := lipgloss.NewStyle().Foreground(lipgloss.Color(bulletColor)).Render(bullet)
+	iconStyled := lipgloss.NewStyle().Foreground(statusFg).Render(icon)
 	titleText := pr.Primary.Title
 	titleStyle := lipgloss.NewStyle()
 	if isSelected {
-		titleStyle = titleStyle.Bold(true)
+		titleStyle = titleStyle.Foreground(m.Ctx.Theme.PrimaryText).Bold(true)
+	} else {
+		titleStyle = titleStyle.Foreground(m.Ctx.Theme.SecondaryText)
 	}
-	taskCell := fmt.Sprintf("%s %s", bulletStyled, titleStyle.Render(titleText))
+	taskCell := fmt.Sprintf("%s %s", iconStyled, titleStyle.Render(titleText))
 
-	statusCell := lipgloss.NewStyle().Foreground(lipgloss.Color(statusColor)).Render(status)
+	statusCell := lipgloss.NewStyle().Foreground(statusFg).Render(status)
+	if task, ok := m.Ctx.AgentTasks[context.AgentTaskKey("pr", pr.Primary.Repository.NameWithOwner, pr.Primary.Number)]; ok {
+		statusCell = lipgloss.NewStyle().Foreground(m.Ctx.Theme.PrimaryText).Render(task.Role + ":" + agentTaskStatusLabel(task.Status))
+	}
 
 	elapsed := utils.TimeElapsed(pr.Primary.UpdatedAt)
 	var updatedText string
@@ -178,13 +256,64 @@ func (m Model) toAgentRow(pr prrow.Data, isSelected bool) table.Row {
 	} else {
 		updatedText = fmt.Sprintf("%s ago", elapsed)
 	}
-	updatedCell := lipgloss.NewStyle().Foreground(lipgloss.Color("#5C6370")).Render(updatedText)
+	updatedCell := lipgloss.NewStyle().Foreground(m.Ctx.Theme.FaintText).Render(updatedText)
 
 	return table.Row{
 		taskCell,
 		statusCell,
 		updatedCell,
 	}
+}
+
+type AgentQueueRow struct{ Task context.AgentTask }
+
+func (r *AgentQueueRow) GetRepoNameWithOwner() string { return r.Task.Repo }
+func (r *AgentQueueRow) GetTitle() string             { return r.Task.Title }
+func (r *AgentQueueRow) GetNumber() int               { return r.Task.Number }
+func (r *AgentQueueRow) GetUrl() string {
+	return fmt.Sprintf("https://github.com/%s/issues/%d", r.Task.Repo, r.Task.Number)
+}
+func (r *AgentQueueRow) GetUpdatedAt() time.Time { return r.Task.UpdatedAt }
+
+func (m Model) agentQueueTasks() []context.AgentTask {
+	var found []context.AgentTask
+	for _, task := range m.Ctx.AgentTasks {
+		if task.SectionType != AgentSectionType {
+			continue
+		}
+		if task.Kind == "issue" {
+			found = append(found, task)
+			continue
+		}
+		present := false
+		for _, pr := range m.Prs {
+			if pr.Primary != nil && pr.Primary.Number == task.Number && pr.Primary.Repository.NameWithOwner == task.Repo {
+				present = true
+				break
+			}
+		}
+		if !present {
+			found = append(found, task)
+		}
+	}
+	slices.SortFunc(found, func(a, b context.AgentTask) int {
+		if a.UpdatedAt.Before(b.UpdatedAt) {
+			return -1
+		}
+		if a.UpdatedAt.After(b.UpdatedAt) {
+			return 1
+		}
+		return 0
+	})
+	return found
+}
+
+func (m Model) toAgentQueueRow(task context.AgentTask, selected bool) table.Row {
+	titleStyle := lipgloss.NewStyle().Foreground(m.Ctx.Theme.SecondaryText)
+	if selected {
+		titleStyle = titleStyle.Foreground(m.Ctx.Theme.PrimaryText).Bold(true)
+	}
+	return table.Row{titleStyle.Render(fmt.Sprintf("%s #%d %s", task.Repo, task.Number, task.Title)), task.Role + ":" + agentTaskStatusLabel(task.Status), ""}
 }
 
 func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
@@ -223,6 +352,35 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 				input := m.PromptConfirmationBox.Value()
 				action := m.GetPromptConfirmationAction()
 				pr := m.GetCurrRow()
+				if action == "assignAgent" || action == "agentAssign" {
+					if pr == nil {
+						m.PromptConfirmationBox.Reset()
+						return m, m.SetIsPromptConfirmationShown(false)
+					}
+					role := strings.ToLower(strings.TrimSpace(input))
+					kind := agentTaskKind(pr)
+					if !agentRoleAllowed(kind, role) {
+						m.Ctx.Error = fmt.Errorf("role %q is not available for this task", role)
+					} else {
+						cmd = m.assignAgentTask(pr, role)
+					}
+					m.Table.SetRows(m.BuildRows())
+					m.PromptConfirmationBox.Reset()
+					blinkCmd := m.SetIsPromptConfirmationShown(false)
+					return m, tea.Batch(cmd, blinkCmd)
+				}
+				if action == "agentConfig" {
+					providerID := strings.ToLower(strings.TrimSpace(input))
+					if strings.HasSuffix(providerID, "-cli") {
+						if _, providerErr := provider.NewRegistry().Detect(stdcontext.Background(), providerID, false); providerErr == nil {
+							m.Ctx.AgentProviderID = providerID
+							cmd = m.runWaitingAgentTasks()
+						}
+					}
+					m.PromptConfirmationBox.Reset()
+					blinkCmd := m.SetIsPromptConfirmationShown(false)
+					return m, tea.Batch(cmd, blinkCmd)
+				}
 				sid := tasks.SectionIdentifier{Id: m.Id, Type: SectionType}
 				if input == "Y" || input == "y" {
 					switch action {
@@ -251,6 +409,45 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 		}
 
 		switch {
+		case m.Type == AgentSectionType && key.Matches(msg, keys.PRKeys.AssignAgent):
+			m.SetPromptConfirmationAction("assignAgent")
+			if queueRow, isQueueRow := m.GetCurrRow().(*AgentQueueRow); isQueueRow && queueRow.Task.Kind == "issue" {
+				m.PromptConfirmationBox.SetPrompt("Assign triage or janitor: ")
+			} else {
+				m.PromptConfirmationBox.SetPrompt("Assign reviewer, sentinel, diagnostics, or janitor: ")
+			}
+			cmd = m.SetIsPromptConfirmationShown(true)
+
+		case m.Type == AgentSectionType && key.Matches(msg, keys.PRKeys.AgentConfig):
+			m.SetPromptConfirmationAction("agentConfig")
+			var choices []string
+			for _, item := range provider.NewRegistry().ListProviders(stdcontext.Background()) {
+				if item.Available && strings.HasSuffix(item.ID, "-cli") {
+					choices = append(choices, item.ID)
+				}
+			}
+			if len(choices) == 0 {
+				choices = []string{"No provider CLIs detected"}
+			}
+			m.PromptConfirmationBox.SetPrompt("Available: " + strings.Join(choices, ", ") + " | current: " + m.Ctx.AgentProviderID + " | select ID: ")
+			cmd = m.SetIsPromptConfirmationShown(true)
+
+		case m.Type == SectionType && key.Matches(msg, keys.PRKeys.AssignTaskAgent):
+			m.SetPromptConfirmationAction("agentAssign")
+			m.PromptConfirmationBox.SetPrompt("Assign reviewer, sentinel, diagnostics, or janitor: ")
+			cmd = m.SetIsPromptConfirmationShown(true)
+
+		case m.Type == SectionType && key.Matches(msg, keys.PRKeys.AgentTaskConfig):
+			m.SetPromptConfirmationAction("agentConfig")
+			var choices []string
+			for _, item := range provider.NewRegistry().ListProviders(stdcontext.Background()) {
+				if item.Available && strings.HasSuffix(item.ID, "-cli") {
+					choices = append(choices, item.ID)
+				}
+			}
+			m.PromptConfirmationBox.SetPrompt("Available: " + strings.Join(choices, ", ") + " | current: " + m.Ctx.AgentProviderID + " | select ID: ")
+			cmd = m.SetIsPromptConfirmationShown(true)
+
 		case key.Matches(msg, keys.PRKeys.Diff):
 			cmd = m.diff()
 
@@ -343,6 +540,37 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			m.Table.SetLastUpdated(time.Now())
 			m.UpdateTotalItemsCount(m.TotalCount)
 		}
+
+	case tasks.AgentRunFinishedMsg:
+		if task, ok := m.Ctx.AgentTasks[msg.Key]; ok {
+			task.Summary = msg.Summary
+			task.Phases = append([]string(nil), msg.Phases...)
+			task.UpdatedAt = time.Now()
+			if msg.Err != nil {
+				task.Status, task.Error = "failed", msg.Err.Error()
+				task.CurrentPhase = "Execution failed"
+			} else {
+				task.Status = msg.Status
+				if len(task.Phases) > 0 {
+					task.CurrentPhase = task.Phases[len(task.Phases)-1]
+				} else {
+					task.CurrentPhase = msg.Status
+				}
+			}
+			m.Ctx.AgentTasks[msg.Key] = task
+			m.Table.SetRows(m.BuildRows())
+			if m.HistoryOnly {
+				m.TotalCount = m.NumRows()
+			}
+		}
+
+	case tasks.AgentTaskUpdatedMsg:
+		m.Ctx.AgentTasks[msg.Task.Key] = msg.Task
+		m.Table.SetRows(m.BuildRows())
+		if m.HistoryOnly {
+			m.TotalCount = m.NumRows()
+		}
+
 	}
 
 	search, searchCmd := m.SearchBar.Update(msg)
@@ -356,6 +584,76 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 	m.Table = table
 
 	return m, tea.Batch(cmd, searchCmd, promptCmd, tableCmd)
+}
+
+func (m *Model) GetPromptConfirmation() string {
+	if m.IsPromptConfirmationFocused() {
+		switch m.GetPromptConfirmationAction() {
+		case "agentAssign", "assignAgent", "agentConfig":
+			return m.Ctx.Styles.ListViewPort.PagerStyle.Render(m.PromptConfirmationBox.View())
+		}
+	}
+	return m.BaseModel.GetPromptConfirmation()
+}
+
+func (m *Model) assignAgentTask(row data.RowData, role string) tea.Cmd {
+	if row == nil {
+		return nil
+	}
+	if m.Ctx.AgentTasks == nil {
+		m.Ctx.AgentTasks = make(map[string]context.AgentTask)
+	}
+	kind := agentTaskKind(row)
+	role = strings.ToLower(role)
+	if !agentRoleAllowed(kind, role) {
+		return nil
+	}
+	key := context.AgentTaskKey(kind, row.GetRepoNameWithOwner(), row.GetNumber())
+	task := context.AgentTask{Key: key, SectionID: m.Id, SectionType: m.Type, Kind: kind, Repo: row.GetRepoNameWithOwner(), Number: row.GetNumber(), Title: row.GetTitle(), Role: role, Provider: m.Ctx.AgentProviderID, Status: "queued", UpdatedAt: time.Now()}
+	if m.Ctx.AgentProviderID == "" {
+		task.Status = "choose CLI"
+		task.CurrentPhase = "Waiting for CLI selection"
+		task.Phases = []string{"Assignment accepted", task.CurrentPhase}
+		m.Ctx.AgentTasks[key] = task
+		return nil
+	}
+	task.Status = "running"
+	task.CurrentPhase = "Starting " + task.Provider + " and loading " + kind + " context"
+	task.Phases = []string{"Assignment accepted", task.CurrentPhase}
+	m.Ctx.AgentTasks[key] = task
+	return tasks.RunAgent(stdcontext.Background(), key, task.SectionID, task.SectionType, task.Repo, kind, task.Number, role, m.Ctx.AgentProviderID)
+}
+
+func agentTaskKind(row data.RowData) string {
+	if queueRow, ok := row.(*AgentQueueRow); ok {
+		return queueRow.Task.Kind
+	}
+	return "pr"
+}
+
+func agentRoleAllowed(kind, role string) bool {
+	if kind == "issue" {
+		return role == "triage" || role == "janitor"
+	}
+	return role == "reviewer" || role == "sentinel" || role == "diagnostics" || role == "janitor"
+}
+
+func (m *Model) runWaitingAgentTasks() tea.Cmd {
+	var cmds []tea.Cmd
+	for key, task := range m.Ctx.AgentTasks {
+		if task.Status != "choose CLI" {
+			continue
+		}
+		task.Status = "running"
+		task.Provider = m.Ctx.AgentProviderID
+		task.CurrentPhase = "Starting " + task.Provider + " and loading " + task.Kind + " context"
+		task.Phases = []string{"Assignment accepted", task.CurrentPhase}
+		task.UpdatedAt = time.Now()
+		m.Ctx.AgentTasks[key] = task
+		cmds = append(cmds, tasks.RunAgent(stdcontext.Background(), key, task.SectionID, task.SectionType, task.Repo, task.Kind, task.Number, task.Role, task.Provider))
+	}
+	m.Table.SetRows(m.BuildRows())
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) EnrichPR(data data.EnrichedPullRequestData) {
@@ -463,6 +761,7 @@ func GetSectionColumns(
 				Width:  createdAtLayout.Width,
 				Hidden: createdAtLayout.Hidden,
 			},
+			{Title: "Agent", Width: utils.IntPtr(14)},
 		}
 	}
 
@@ -533,6 +832,7 @@ func GetSectionColumns(
 			Width:  createdAtLayout.Width,
 			Hidden: createdAtLayout.Hidden,
 		},
+		{Title: "Agent", Width: utils.IntPtr(20)},
 	}
 }
 
@@ -549,10 +849,13 @@ func (m Model) BuildRows() []table.Row {
 			Data:    &currPr,
 			Columns: m.Table.Columns, ShowAuthorIcon: m.ShowAuthorIcon,
 		}
-		rows = append(
-			rows,
-			prModel.ToTableRow(currItem == i),
-		)
+		row := prModel.ToTableRow(currItem == i)
+		if task, ok := m.Ctx.AgentTasks[context.AgentTaskKey("pr", currPr.Primary.Repository.NameWithOwner, currPr.Primary.Number)]; ok {
+			row = append(row, task.Role+":"+agentTaskStatusLabel(task.Status))
+		} else {
+			row = append(row, "")
+		}
+		rows = append(rows, row)
 	}
 
 	if rows == nil {
@@ -563,6 +866,12 @@ func (m Model) BuildRows() []table.Row {
 }
 
 func (m *Model) NumRows() int {
+	if m.Type == AgentSectionType {
+		if m.HistoryOnly {
+			return len(m.agentHistoryTasks())
+		}
+		return len(m.Prs) + len(m.agentQueueTasks())
+	}
 	return len(m.Prs)
 }
 
@@ -575,7 +884,26 @@ type SectionPullRequestsFetchedMsg struct {
 
 func (m *Model) GetCurrRow() data.RowData {
 	idx := m.Table.GetCurrItem()
-	if idx < 0 || idx >= len(m.Prs) {
+	if idx < 0 {
+		return nil
+	}
+	if m.HistoryOnly {
+		tasks := m.agentHistoryTasks()
+		if idx >= len(tasks) {
+			return nil
+		}
+		return &AgentQueueRow{Task: tasks[idx]}
+	}
+	if m.Type == AgentSectionType && idx >= len(m.Prs) {
+		issues := m.agentQueueTasks()
+		issueIdx := idx - len(m.Prs)
+		if issueIdx < 0 || issueIdx >= len(issues) {
+			return nil
+		}
+		row := &AgentQueueRow{Task: issues[issueIdx]}
+		return row
+	}
+	if idx >= len(m.Prs) {
 		return nil
 	}
 	pr := m.Prs[idx]
@@ -584,6 +912,9 @@ func (m *Model) GetCurrRow() data.RowData {
 
 func (m *Model) FetchNextPageSectionRows() []tea.Cmd {
 	if m == nil {
+		return nil
+	}
+	if m.HistoryOnly {
 		return nil
 	}
 
@@ -677,8 +1008,29 @@ func InitAgentSections(ctx *context.ProgramContext) []section.Section {
 	if ctx.Config == nil || len(ctx.Config.AgentsSections) == 0 {
 		return []section.Section{}
 	}
-	sections := make([]section.Section, len(ctx.Config.AgentsSections))
-	for i, sectionConfig := range ctx.Config.AgentsSections {
+	configs := append([]config.AgentsSectionConfig(nil), ctx.Config.AgentsSections...)
+	hasHistory := false
+	for _, sectionConfig := range configs {
+		if strings.EqualFold(sectionConfig.Title, "history") {
+			hasHistory = true
+			break
+		}
+	}
+	if !hasHistory {
+		history := config.AgentsSectionConfig{Title: "History"}
+		insertAt := len(configs)
+		for i, sectionConfig := range configs {
+			if strings.EqualFold(sectionConfig.Title, "working") {
+				insertAt = i + 1
+				break
+			}
+		}
+		configs = append(configs, config.AgentsSectionConfig{})
+		copy(configs[insertAt+1:], configs[insertAt:])
+		configs[insertAt] = history
+	}
+	sections := make([]section.Section, len(configs))
+	for i, sectionConfig := range configs {
 		sections[i] = new(NewAgentModel(
 			i,
 			ctx,
@@ -698,6 +1050,11 @@ func FetchAllSections(
 	fetchPRsCmds := make([]tea.Cmd, 0)
 	prSections := section.ToImplSections[*Model](sections)
 	for _, prSection := range prSections {
+		if prSection.HistoryOnly {
+			prSection.Table.SetRows(prSection.BuildRows())
+			prSection.TotalCount = prSection.NumRows()
+			continue
+		}
 		prSection.SetLastUpdated(time.Now())
 		prSection.SetCreatedAt(time.Now())
 		prSection.PageInfo = nil

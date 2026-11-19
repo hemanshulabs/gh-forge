@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
 )
 
 // SafeExecutor handles write actions (comments, labels, closing) with mandatory opt-in and dry-run safety.

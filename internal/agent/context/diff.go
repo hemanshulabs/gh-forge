@@ -14,9 +14,9 @@ func FetchPRDiff(ctx context.Context, repo string, prNumber int) (string, error)
 	}
 
 	cmd := exec.CommandContext(ctx, "gh", args...)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch PR diff: %w", err)
+		return "", fmt.Errorf("failed to fetch PR diff: %w: %s", err, string(output))
 	}
 
 	return SanitizeDiff(string(output)), nil

@@ -42,6 +42,7 @@ type AgentResult struct {
 	Role      string    `json:"role"`
 	Summary   string    `json:"summary"`
 	Findings  []Finding `json:"findings"`
+	Warnings  []string  `json:"warnings,omitempty"`
 	RawResult string    `json:"raw_result,omitempty"`
 }
 
@@ -85,8 +86,15 @@ func ParseAgentResult(jsonStr string) (*AgentResult, error) {
 	}
 
 	var res AgentResult
-	if err := json.Unmarshal([]byte(cleaned), &res); err != nil {
-		return nil, fmt.Errorf("invalid JSON response: %w", err)
+	if err := json.Unmarshal([]byte(cleaned), &res); err != nil || (res.Role == "" && res.Summary == "" && len(res.Findings) == 0) {
+		parsed, scanErr := findAgentResult(cleaned)
+		if scanErr != nil {
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON response: %w", err)
+			}
+			return nil, fmt.Errorf("agent response did not contain an AgentResult object")
+		}
+		res = *parsed
 	}
 
 	// Normalize severity to lowercase
@@ -99,6 +107,27 @@ func ParseAgentResult(jsonStr string) (*AgentResult, error) {
 	}
 
 	return &res, nil
+}
+
+// findAgentResult accepts CLIs that wrap the model's JSON in status text or
+// structured event objects. It only accepts an object with AgentResult fields.
+func findAgentResult(output string) (*AgentResult, error) {
+	for start := strings.IndexByte(output, '{'); start >= 0; {
+		decoder := json.NewDecoder(strings.NewReader(output[start:]))
+		var candidate AgentResult
+		if err := decoder.Decode(&candidate); err == nil &&
+			(candidate.Role != "" || candidate.Summary != "" || len(candidate.Findings) > 0) {
+			if candidate.Validate() == nil {
+				return &candidate, nil
+			}
+		}
+		next := strings.IndexByte(output[start+1:], '{')
+		if next < 0 {
+			break
+		}
+		start += next + 1
+	}
+	return nil, fmt.Errorf("agent result object not found")
 }
 
 // JSONSchemaSpecification returns the fixed JSON schema expected from all agent completions.
@@ -153,6 +182,11 @@ const JSONSchemaSpecification = `{
           }
         }
       }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Runtime warnings when analysis was incomplete"
     }
   }
 }`

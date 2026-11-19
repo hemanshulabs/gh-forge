@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
 )
 
 type testModelOpts struct {

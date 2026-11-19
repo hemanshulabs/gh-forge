@@ -1,7 +1,7 @@
 ---
 seo:
   title: Forge - A Rich Terminal UI for GitHub
-  description: A rich terminal UI for GitHub that doesn't break your flow. Review PRs, triage issues, process notifications, track AI agents, and manage branches directly from your terminal.
+  description: A rich terminal UI for GitHub that doesn't break your flow. Review PRs, triage issues, process notifications, and manage branches directly from your terminal.
 ---
 
 ::u-page-hero
@@ -12,7 +12,7 @@ headline: v0.1.0 • GitHub CLI Extension
 The Terminal UI for GitHub that Doesn't Break Your Flow
 
 #description
-**Forge** brings your pull requests, issues, notifications, branches, and AI agents into an ultra-fast, keyboard-driven terminal dashboard. Review code, triage issues, and clear notifications without opening a browser.
+**Forge** brings your pull requests, issues, notifications, and branches into an ultra-fast, keyboard-driven terminal dashboard. Review code, triage issues, and clear notifications without opening a browser.
 
 #links
   :::u-button
@@ -95,18 +95,6 @@ Forge eliminates context switching with five specialized views, instant diffs, a
   
   #description
   Triage GitHub notifications with zero web overhead. Preview related PRs and Issues side-by-side in the sidebar, mark individual items as read, or mark entire sections done in one go.
-  :::
-
-  :::u-page-feature
-  ---
-  icon: i-lucide-bot
-  to: /core-concepts/views
-  ---
-  #title
-  AI Agents & Bot Workflows
-  
-  #description
-  Dedicated view tailored for managing AI coding agent PRs and automated bot workflows, keeping high-volume machine contributions neatly organized.
   :::
 
   :::u-page-feature

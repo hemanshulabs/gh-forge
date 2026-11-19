@@ -17,23 +17,23 @@ import (
 
 	zone "github.com/lrstanley/bubblezone/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/branchsidebar"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/footer"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/issueview"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/notificationrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/notificationssection"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/notificationview"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prssection"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prview"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/sidebar"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tabs"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/theme"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/branchsidebar"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/footer"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/issueview"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/notificationrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/notificationssection"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/notificationview"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prssection"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prview"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/section"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/sidebar"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/tabs"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/keys"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/theme"
 )
 
 // func TestFullOutput(t *testing.T) {
@@ -250,11 +250,7 @@ func TestSwitchSelectedView_FullCycle(t *testing.T) {
 	m.switchSelectedView()
 	require.Equal(t, config.IssuesView, m.ctx.View)
 
-	// 4. Switch -> AgentsView
-	m.switchSelectedView()
-	require.Equal(t, config.AgentsView, m.ctx.View)
-
-	// 5. Switch -> NotificationsView
+	// 4. Switch -> NotificationsView; the dedicated Agents view is removed.
 	m.switchSelectedView()
 	require.Equal(t, config.NotificationsView, m.ctx.View)
 }

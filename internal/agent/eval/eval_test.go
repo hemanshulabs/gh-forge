@@ -6,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/provider"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/roles"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/runtime"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/provider"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/roles"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/runtime"
 )
 
 // MockProvider simulates a model returning a pre-configured response for evaluation.

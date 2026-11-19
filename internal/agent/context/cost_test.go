@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/context"
 )
 
 func TestShouldIgnoreFile(t *testing.T) {

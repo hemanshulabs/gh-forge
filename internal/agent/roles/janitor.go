@@ -1,7 +1,7 @@
 package roles
 
 import (
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
 )
 
 // JanitorSystemPrompt defines the orchestrator role instructions for the Janitor agent.

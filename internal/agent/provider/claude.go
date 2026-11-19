@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
 )
 
 // ClaudeCLIAdapter runs Claude Code in headless mode (-p/--print).
@@ -44,6 +45,17 @@ func (c *ClaudeCLIAdapter) IsAvailable(ctx context.Context) bool {
 	return true
 }
 
+func claudeCLIArgs(model string) []string {
+	args := []string{
+		"--safe-mode", "--tools", "", "--disallowedTools", "mcp__*",
+		"--disable-slash-commands", "--no-session-persistence", "--max-turns", "1", "-p",
+	}
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+	return args
+}
+
 func (c *ClaudeCLIAdapter) Complete(ctx context.Context, req CompletionRequest) (*agent.AgentResult, error) {
 	if !c.IsAvailable(ctx) {
 		return nil, fmt.Errorf("claude CLI is not installed or not found in PATH")
@@ -58,12 +70,11 @@ func (c *ClaudeCLIAdapter) Complete(ctx context.Context, req CompletionRequest) 
 	fullPrompt.WriteString("\n\nUSER PROMPT:\n")
 	fullPrompt.WriteString(req.UserPrompt)
 
-	cmdArgs := []string{"-p"}
-	if req.Model != "" {
-		cmdArgs = append(cmdArgs, "--model", req.Model)
-	}
-
-	cmd := exec.CommandContext(ctx, c.binaryPath, cmdArgs...)
+	// The prompt already contains all relevant repository context. Run from the
+	// system temp directory and explicitly disable built-in and MCP tools so this
+	// adapter cannot edit files or execute project commands.
+	cmd := exec.CommandContext(ctx, c.binaryPath, claudeCLIArgs(req.Model)...)
+	cmd.Dir = os.TempDir()
 	cmd.Stdin = strings.NewReader(fullPrompt.String())
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

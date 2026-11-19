@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
 )
 
 func init() {

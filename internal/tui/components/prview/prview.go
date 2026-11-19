@@ -10,21 +10,21 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/carousel"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/cmpcontroller"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/fuzzyselect"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/inputbox"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prssection"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tasks"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/markdown"
-	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/common"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/carousel"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/cmpcontroller"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/fuzzyselect"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/inputbox"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prssection"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/tasks"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/keys"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/markdown"
+	"github.com/hemanshulabs/gh-forge/v4/internal/utils"
 )
 
 var (
@@ -244,77 +244,124 @@ func (m *Model) renderAgentHeaderMeta() string {
 		branches,
 	)
 
-	workerName, workerIcon, workerColor := m.getAssignedWorker()
-	time := lipgloss.NewStyle().Render(utils.TimeElapsed(m.pr.Data.Primary.CreatedAt))
+	time := lipgloss.NewStyle().Render(utils.TimeElapsed(m.pr.Data.Primary.UpdatedAt))
 
-	line2 := lipgloss.JoinHorizontal(lipgloss.Top,
-		" by ",
-		lipgloss.NewStyle().Foreground(lipgloss.Color("#C77DFF")).Bold(true).Render(constants.JanitorIcon+" @Janitor"),
-		lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText).Render(" 󰁕 "),
-		lipgloss.NewStyle().Foreground(lipgloss.Color(workerColor)).Bold(true).Render(workerIcon+" @"+workerName),
-		lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText).Render(
-			lipgloss.JoinHorizontal(lipgloss.Top, " ⋅ ", time, " ago ⋅ agent orchestrator"),
-		),
-	)
+	line2Text := "GitHub PR metadata only; no agent run is recorded in the TUI. Updated " + time + " ago"
+	if task, ok := m.currentAgentTask(); ok {
+		phase := task.CurrentPhase
+		if phase == "" {
+			phase = agentStatusLabel(task.Status)
+		}
+		line2Text = fmt.Sprintf("%s via %s · %s · updated %s ago", task.Role, task.Provider, phase, time)
+	}
+	line2 := lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText).Render(line2Text)
 
 	return lipgloss.JoinVertical(lipgloss.Left, line1, "\n", line2)
 }
 
 func (m *Model) getAssignedWorker() (string, string, string) {
 	if m.pr == nil || m.pr.Data == nil || m.pr.Data.Primary == nil {
-		return "Reviewer Agent", constants.CodeReviewIcon, "#02F9FB"
+		return "Reviewer (suggested)", constants.CodeReviewIcon, "#02F9FB"
 	}
 
 	primary := m.pr.Data.Primary
 	for _, l := range primary.Labels.Nodes {
 		lname := strings.ToLower(l.Name)
 		if strings.Contains(lname, "security") || strings.Contains(lname, "cve") || strings.Contains(lname, "vulnerability") {
-			return "Sentinel Agent", constants.SecurityIcon, "#FF5555"
+			return "Sentinel (suggested)", constants.SecurityIcon, "#FF5555"
 		}
 	}
 
 	if len(primary.Commits.Nodes) > 0 {
 		state := string(primary.Commits.Nodes[0].Commit.StatusCheckRollup.State)
 		if state == "FAILURE" || state == "ERROR" {
-			return "Diagnostics Agent", constants.WorkflowIcon, "#F1FA8C"
+			return "Diagnostics (suggested)", constants.WorkflowIcon, "#F1FA8C"
 		}
 	}
 
 	if len(primary.Labels.Nodes) == 0 && primary.ReviewRequests.TotalCount == 0 {
-		return "Triage Agent", constants.LabelsIcon, "#50FA7B"
+		return "Reviewer (suggested)", constants.CodeReviewIcon, "#02F9FB"
 	}
 
-	return "Reviewer Agent", constants.CodeReviewIcon, "#02F9FB"
+	return "Reviewer (suggested)", constants.CodeReviewIcon, "#02F9FB"
 }
 
 func (m *Model) getAgentTaskStatusPill() (string, color.Color) {
 	if m.pr == nil || m.pr.Data == nil || m.pr.Data.Primary == nil {
-		return "Inactive", m.ctx.Theme.FaintText.Dark
+		return "Unknown PR status", m.ctx.Theme.FaintText.Dark
 	}
-
 	primary := m.pr.Data.Primary
+	if task, ok := m.currentAgentTask(); ok {
+		statusColor := m.ctx.Theme.WarningText.Dark
+		switch task.Status {
+		case "complete":
+			statusColor = m.ctx.Theme.SuccessText.Dark
+		case "failed":
+			statusColor = m.ctx.Theme.ErrorText.Dark
+		}
+		return task.Role + ": " + agentStatusLabel(task.Status), statusColor
+	}
 	isCiPending := false
 	if len(primary.Commits.Nodes) > 0 {
 		state := string(primary.Commits.Nodes[0].Commit.StatusCheckRollup.State)
-		if state == "PENDING" || state == "EXPECTED" {
-			isCiPending = true
-		}
+		isCiPending = state == "PENDING" || state == "EXPECTED"
 	}
-
 	switch {
 	case isCiPending:
-		return " Working", m.ctx.Styles.Colors.OpenPR.Dark
+		return constants.WaitingIcon + " Checks pending", m.ctx.Styles.Colors.OpenPR.Dark
 	case primary.ReviewDecision == "CHANGES_REQUESTED":
-		return " Needs you", m.ctx.Styles.Colors.ClosedPR.Dark
+		return constants.ActionRequiredIcon + " Changes requested", m.ctx.Styles.Colors.ClosedPR.Dark
 	case primary.ReviewRequests.TotalCount > 0:
-		return " Needs you", m.ctx.Theme.WarningText.Dark
+		return constants.ActionRequiredIcon + " Review requested", m.ctx.Theme.WarningText.Dark
 	case primary.ReviewDecision == "APPROVED":
-		return " Ready", m.ctx.Styles.Colors.MergedPR.Dark
+		return constants.ApprovedIcon + " Approved", m.ctx.Styles.Colors.MergedPR.Dark
 	case primary.IsDraft:
-		return "○ Inactive", m.ctx.Theme.FaintText.Dark
+		return constants.DraftIcon + " Draft", m.ctx.Theme.FaintText.Dark
 	default:
-		return "○ Inactive", m.ctx.Theme.FaintText.Dark
+		return constants.DraftIcon + " Open", m.ctx.Theme.FaintText.Dark
 	}
+}
+
+func (m *Model) currentAgentTask() (context.AgentTask, bool) {
+	if m.ctx == nil || m.pr == nil || m.pr.Data == nil || m.pr.Data.Primary == nil {
+		return context.AgentTask{}, false
+	}
+	primary := m.pr.Data.Primary
+	task, ok := m.ctx.AgentTasks[context.AgentTaskKey("pr", primary.Repository.NameWithOwner, primary.Number)]
+	return task, ok
+}
+
+func agentStatusLabel(status string) string {
+	switch status {
+	case "needs_input":
+		return "needs input"
+	case "choose CLI":
+		return "waiting for CLI"
+	case "complete":
+		return "complete"
+	case "failed":
+		return "failed"
+	case "running":
+		return "running"
+	default:
+		return status
+	}
+}
+
+func executionPhaseLabel(phase string) string {
+	switch strings.ToLower(phase) {
+	case "context_ready":
+		return "PR context loaded"
+	case "routing_complete":
+		return "Agent roles selected"
+	case "synthesis_complete":
+		return "Janitor summary complete"
+	}
+	label := strings.ReplaceAll(phase, "_", " ")
+	if label == "" {
+		return label
+	}
+	return strings.ToUpper(label[:1]) + label[1:]
 }
 
 func (m *Model) viewAgentOverviewTab() string {
@@ -351,19 +398,27 @@ func (m *Model) renderJanitorSection(width int, workerName, workerIcon, workerCo
 	desc := lipgloss.NewStyle().
 		Foreground(m.ctx.Theme.SecondaryText).
 		Width(width).
-		Render("Janitor is the primary supervisor coordinating this repository task. It triaged the event, prepared a sanitized diff context, and delegated execution to @" + workerName + ".")
+		Render("Read-only agent execution status for this pull request.")
 
 	faintStyle := lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText)
+	runState := "No agent run recorded"
+	if task, ok := m.currentAgentTask(); ok {
+		runState = fmt.Sprintf("%s · %s · %s", task.Role, agentStatusLabel(task.Status), task.Provider)
+	}
 	meta1 := lipgloss.JoinHorizontal(lipgloss.Top,
-		faintStyle.Render("Supervisor:  "),
-		lipgloss.NewStyle().Foreground(lipgloss.Color("#C77DFF")).Bold(true).Render(constants.JanitorIcon+" Janitor (Lead)"),
+		faintStyle.Render("Run state:   "),
+		lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Bold(true).Render(runState),
 	)
+	assignedWorker := workerIcon + " " + workerName
+	if task, ok := m.currentAgentTask(); ok {
+		assignedWorker = task.Role + " via " + task.Provider
+	}
 	meta2 := lipgloss.JoinHorizontal(lipgloss.Top,
-		faintStyle.Render("Assigned:    "),
-		lipgloss.NewStyle().Foreground(lipgloss.Color(workerColor)).Bold(true).Render(workerIcon+" "+workerName),
+		faintStyle.Render("Agent:       "),
+		lipgloss.NewStyle().Foreground(lipgloss.Color(workerColor)).Bold(true).Render(assignedWorker),
 	)
 	meta3 := lipgloss.JoinHorizontal(lipgloss.Top,
-		faintStyle.Render("State:       "),
+		faintStyle.Render("PR status:   "),
 		lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Bold(true).Render(statusText),
 	)
 
@@ -383,84 +438,40 @@ func (m *Model) renderAgentPhasesSection(width int, workerName, statusText strin
 	heading := m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Bold(true).Render(
 		fmt.Sprintf("%s Working Phases", constants.WorkflowIcon),
 	)
-
-	successGlyph := lipgloss.NewStyle().Foreground(m.ctx.Theme.SuccessText).Render("")
-	faintText := lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText)
-	secondaryText := lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText)
-
-	// Phase 1
-	p1Title := lipgloss.JoinHorizontal(lipgloss.Top,
-		successGlyph, " ",
-		lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Bold(true).Render("Phase 1: Ingestion & Diff Sanitization"),
-	)
-	p1Desc := secondaryText.Render("   Filtered lockfile noise (go.sum, devbox.lock), token budget optimized.")
-
-	// Phase 2
-	p2Title := lipgloss.JoinHorizontal(lipgloss.Top,
-		successGlyph, " ",
-		lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Bold(true).Render("Phase 2: Janitor Task Triage & Delegation 󰁕 @"+workerName),
-	)
-	p2Desc := secondaryText.Render(fmt.Sprintf("   Classified diff scope; dispatched task to %s.", workerName))
-
-	// Phase 3
-	var p3Glyph, p3TitleText, p3DescText string
-	if strings.Contains(statusText, "Working") {
-		p3Glyph = lipgloss.NewStyle().Foreground(lipgloss.Color("#61AFEF")).Render("")
-		p3TitleText = "Phase 3: Deep Rule Analysis (In Progress)"
-		p3DescText = "   Active inspection: evaluating code style, risks, regressions, and tests."
-	} else {
-		p3Glyph = successGlyph
-		p3TitleText = "Phase 3: Deep Rule Analysis & Security Scan"
-		p3DescText = "   Completed diff inspection, style checks, and risk verification."
+	lines := []string{heading, ""}
+	task, ok := m.currentAgentTask()
+	if !ok {
+		lines = append(lines, lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Width(width).
+			Render("No agent run is recorded for this pull request. Assign an agent to see its execution phases here."))
+		return lipgloss.JoinVertical(lipgloss.Left, lines...)
 	}
-	p3Title := lipgloss.JoinHorizontal(lipgloss.Top,
-		p3Glyph, " ",
-		lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Bold(true).Render(p3TitleText),
-	)
-	p3Desc := secondaryText.Render(p3DescText)
-
-	// Phase 4
-	var p4Glyph, p4TitleText, p4DescText string
-	switch {
-	case strings.Contains(statusText, "Ready"):
-		p4Glyph = lipgloss.NewStyle().Foreground(m.ctx.Theme.SuccessText).Render("")
-		p4TitleText = "Phase 4: Output Synthesis & Verification (Ready)"
-		p4DescText = "   Findings verified against JSON schema; ready for developer review."
-	case strings.Contains(statusText, "Needs you"):
-		p4Glyph = lipgloss.NewStyle().Foreground(m.ctx.Theme.ErrorText).Render("")
-		p4TitleText = "Phase 4: Output Synthesis (Needs Developer Attention)"
-		p4DescText = "   Changes requested or reviews required before completion handoff."
-	case strings.Contains(statusText, "Working"):
-		p4Glyph = lipgloss.NewStyle().Foreground(lipgloss.Color("#61AFEF")).Render("")
-		p4TitleText = "Phase 4: Output Synthesis (Pending Analysis)"
-		p4DescText = "   Awaiting completion of worker analysis passes."
-	default:
-		p4Glyph = faintText.Render("○")
-		p4TitleText = "Phase 4: Output Synthesis (Idle)"
-		p4DescText = "   Task is in queue or waiting for activity."
+	if task.CurrentPhase != "" && task.Status == "running" {
+		lines = append(lines, m.renderPhaseStep(width, "Current: "+executionPhaseLabel(task.CurrentPhase), constants.WaitingIcon, "Agent process is running."), "")
 	}
-	p4Title := lipgloss.JoinHorizontal(lipgloss.Top,
-		p4Glyph, " ",
-		lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Bold(true).Render(p4TitleText),
-	)
-	p4Desc := secondaryText.Render(p4DescText)
-
-	return lipgloss.JoinVertical(
-		lipgloss.Left,
-		heading,
-		"",
-		p1Title,
-		p1Desc,
-		"",
-		p2Title,
-		p2Desc,
-		"",
-		p3Title,
-		p3Desc,
-		"",
-		p4Title,
-		p4Desc,
-	)
+	if len(task.Phases) == 0 {
+		lines = append(lines, lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Width(width).Render("Execution trace is not available yet."))
+		return lipgloss.JoinVertical(lipgloss.Left, lines...)
+	}
+	for _, phase := range task.Phases {
+		icon := constants.ApprovedIcon
+		lower := strings.ToLower(phase)
+		if strings.Contains(lower, "blocked") || strings.Contains(lower, "failed") {
+			icon = constants.FailureIcon
+		} else if strings.Contains(lower, "limited") {
+			icon = constants.ActionRequiredIcon
+		} else if task.Status == "running" && phase == task.Phases[len(task.Phases)-1] {
+			icon = constants.WaitingIcon
+		}
+		lines = append(lines, m.renderPhaseStep(width, executionPhaseLabel(phase), icon, ""), "")
+	}
+	if task.Status == "needs_input" || task.Status == "failed" {
+		message := task.Summary
+		if task.Error != "" {
+			message = task.Error
+		}
+		lines = append(lines, lipgloss.NewStyle().Foreground(m.ctx.Theme.WarningText).Width(width).Render(message))
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
 func (m *Model) renderAgentScopeSection(width int) string {
@@ -519,8 +530,10 @@ func (m *Model) renderAgentActionSection(width int) string {
 		prNum = m.pr.Data.Primary.Number
 	}
 
-	summaryText := "All agent checks evaluated according to the Forge schema specification. Ready for review or interactive command execution."
-	if m.pr != nil && m.pr.Data != nil && m.pr.Data.IsEnriched && strings.TrimSpace(m.pr.Data.Enriched.Body) != "" {
+	summaryText := "No agent reply is recorded for this pull request yet."
+	if task, ok := m.currentAgentTask(); ok && strings.TrimSpace(task.Summary) != "" {
+		summaryText = task.Summary
+	} else if m.pr != nil && m.pr.Data != nil && m.pr.Data.IsEnriched && strings.TrimSpace(m.pr.Data.Enriched.Body) != "" {
 		cleanBody := strings.TrimSpace(lineCleanupRegex.ReplaceAllString(htmlCommentRegex.ReplaceAllString(m.pr.Data.Enriched.Body, ""), ""))
 		if len(cleanBody) > 0 {
 			lines := strings.Split(cleanBody, "\n")
@@ -542,7 +555,16 @@ func (m *Model) renderAgentActionSection(width int) string {
 	cliTip := lipgloss.NewStyle().
 		Foreground(m.ctx.Theme.FaintText).
 		Width(width).
-		Render(fmt.Sprintf("Tip: Run 'forge review %d' to inspect code diff or 'forge scan %d' for security audit.", prNum, prNum))
+		Render(fmt.Sprintf("Tip: Run 'forge janitor %d' for routing, 'forge review %d' for code review, or 'forge scan %d' for security audit.", prNum, prNum, prNum))
+	if task, ok := m.currentAgentTask(); ok {
+		if task.Error != "" {
+			cliTip = lipgloss.NewStyle().Foreground(m.ctx.Theme.ErrorText).Width(width).Render("Execution error: " + task.Error)
+		} else if task.Status == "running" && task.CurrentPhase != "" {
+			cliTip = lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText).Width(width).Render("Current phase: " + task.CurrentPhase)
+		} else {
+			cliTip = ""
+		}
+	}
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -557,53 +579,53 @@ func (m *Model) renderAgentActionSection(width int) string {
 func (m *Model) viewAgentPhasesTab() string {
 	width := m.getIndentedContentWidth()
 	body := strings.Builder{}
-
-	workerName, workerIcon, _ := m.getAssignedWorker()
-	statusText, _ := m.getAgentTaskStatusPill()
-
 	heading := m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Bold(true).Render(
-		fmt.Sprintf("%s Detailed Execution Trace", constants.WorkflowIcon),
+		fmt.Sprintf("%s Execution Trace", constants.WorkflowIcon),
 	)
 	body.WriteString(heading)
 	body.WriteString("\n\n")
-
-	// Phase 1 Detail
-	p1Icon := lipgloss.NewStyle().Foreground(m.ctx.Theme.SuccessText).Render("")
-	body.WriteString(m.renderPhaseStep(width, "Phase 1: Context Ingestion & Lockfile Sanitization", p1Icon,
-		"Ingested repository context. Scanned diff tree and automatically excluded lockfiles (go.sum, package-lock.json, devbox.lock). Token consumption reduced, keeping prompt well within budget."))
-	body.WriteString("\n\n")
-
-	// Phase 2 Detail
-	p2Icon := lipgloss.NewStyle().Foreground(m.ctx.Theme.SuccessText).Render("")
-	body.WriteString(m.renderPhaseStep(width, "Phase 2: Janitor Triage & Routing 󰁕 @"+workerName, p2Icon,
-		fmt.Sprintf("Janitor supervisor analyzed the PR diff and task scope. Dispatched execution to %s (%s). Work boundaries strictly established as read-only.", workerName, workerIcon)))
-	body.WriteString("\n\n")
-
-	// Phase 3 Detail
-	p3Icon := lipgloss.NewStyle().Foreground(m.ctx.Theme.SuccessText).Render("")
-	p3Text := fmt.Sprintf("%s executed rule checks: evaluated clean code principles, risk of regression, and missing test branches. Completed with confidence score ≥ 0.75.", workerName)
-	if strings.Contains(statusText, "Working") {
-		p3Icon = lipgloss.NewStyle().Foreground(lipgloss.Color("#61AFEF")).Render("")
-		p3Text = fmt.Sprintf("%s is actively processing this task. Inspecting diff, validating syntax, and evaluating assertions.", workerName)
-	}
-	body.WriteString(m.renderPhaseStep(width, "Phase 3: Deep Rule Analysis & Security Scan", p3Icon, p3Text))
-	body.WriteString("\n\n")
-
-	// Phase 4 Detail
-	p4Icon := lipgloss.NewStyle().Foreground(m.ctx.Theme.SuccessText).Render("")
-	p4Text := fmt.Sprintf("Janitor validated the findings against the rigid JSON schema specification. Final status: %s. Formatted for maintainer terminal review.", statusText)
-	if strings.Contains(statusText, "Needs you") {
-		p4Icon = lipgloss.NewStyle().Foreground(m.ctx.Theme.ErrorText).Render("")
-		p4Text = "Task requires maintainer interaction. Review changes requested or feedback required before completion."
-	} else if strings.Contains(statusText, "Working") {
-		p4Icon = lipgloss.NewStyle().Foreground(lipgloss.Color("#61AFEF")).Render("")
-		p4Text = "Awaiting completion of worker execution before output synthesis."
-	}
-	body.WriteString(m.renderPhaseStep(width, "Phase 4: Output Synthesis & Verification", p4Icon, p4Text))
-
-	// If there are discussion comments from GitHub, show them below the trace
-	if m.pr != nil && m.pr.Data != nil && m.pr.Data.IsEnriched && (len(m.pr.Data.Enriched.Comments.Nodes) > 0 || len(m.pr.Data.Enriched.Reviews.Nodes) > 0) {
+	if task, ok := m.currentAgentTask(); ok {
+		statusLine := fmt.Sprintf("%s · %s · %s", task.Role, agentStatusLabel(task.Status), task.Provider)
+		body.WriteString(lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Bold(true).Render(statusLine))
 		body.WriteString("\n\n")
+		if task.CurrentPhase != "" {
+			body.WriteString(lipgloss.NewStyle().Foreground(m.ctx.Theme.WarningText).Width(width).Render("Current phase: " + executionPhaseLabel(task.CurrentPhase)))
+			body.WriteString("\n\n")
+		}
+		if len(task.Phases) == 0 {
+			body.WriteString(lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Width(width).Render("Execution has started. Detailed phases will appear when the provider returns."))
+			body.WriteString("\n\n")
+		} else {
+			for i, phase := range task.Phases {
+				icon := constants.ApprovedIcon
+				lower := strings.ToLower(phase)
+				if strings.Contains(lower, "blocked") || strings.Contains(lower, "failed") {
+					icon = constants.FailureIcon
+				} else if strings.Contains(lower, "limited") {
+					icon = constants.ActionRequiredIcon
+				} else if task.Status == "running" && i == len(task.Phases)-1 {
+					icon = constants.WaitingIcon
+				}
+				body.WriteString(m.renderPhaseStep(width, executionPhaseLabel(phase), icon, ""))
+				body.WriteString("\n\n")
+			}
+		}
+		if task.Summary != "" {
+			body.WriteString(m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Bold(true).Render("Agent response"))
+			body.WriteString("\n\n")
+			body.WriteString(lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Width(width).Render(task.Summary))
+			body.WriteString("\n\n")
+		}
+		if task.Error != "" {
+			body.WriteString(lipgloss.NewStyle().Foreground(m.ctx.Theme.ErrorText).Width(width).Render("Execution error: " + task.Error))
+			body.WriteString("\n\n")
+		}
+	} else {
+		body.WriteString(lipgloss.NewStyle().Foreground(m.ctx.Theme.SecondaryText).Width(width).
+			Render("No agent execution trace is available for this PR yet. Assign an agent to record its provider run, phases, and response here."))
+		body.WriteString("\n\n")
+	}
+	if m.pr != nil && m.pr.Data != nil && m.pr.Data.IsEnriched && (len(m.pr.Data.Enriched.Comments.Nodes) > 0 || len(m.pr.Data.Enriched.Reviews.Nodes) > 0) {
 		body.WriteString(m.ctx.Styles.Common.MainTextStyle.MarginBottom(1).Underline(true).Bold(true).Render(
 			fmt.Sprintf("%s Review Comments & Discussions", constants.CommentsIcon),
 		))
@@ -621,7 +643,6 @@ func (m *Model) viewAgentPhasesTab() string {
 			}
 		}
 	}
-
 	return body.String()
 }
 

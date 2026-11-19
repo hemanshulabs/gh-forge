@@ -12,9 +12,9 @@ import (
 	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/provider"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/roles"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/provider"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/roles"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
 )
 
 var agentsCmd = &cobra.Command{
@@ -28,7 +28,7 @@ Available agents:
   • Reviewer  (forge review): PR diff quality, code style, risk, missing tests, PR summary
   • Triage    (forge triage): Issue labeling, deduplication, priority, repro checks
   • Sentinel  (forge scan):   Security vulnerabilities, auth gaps, injection, race conditions
-  • Diagnostics (planned):    Root cause analysis from logs, stack traces, and git blame`,
+  • Diagnostics (forge diag): Root cause analysis from supplied CI logs and stack traces`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.SetLevel(log.ErrorLevel)
 
@@ -67,7 +67,7 @@ Available agents:
 			{icon: constants.CodeReviewIcon, name: "Reviewer", cmd: "forge review [pr]", desc: roles.NewReviewerConfig().Description},
 			{icon: constants.LabelsIcon, name: "Triage", cmd: "forge triage [issue]", desc: roles.NewTriageConfig().Description},
 			{icon: constants.SecurityIcon, name: "Sentinel", cmd: "forge scan [pr]", desc: roles.NewSentinelConfig().Description},
-			{icon: constants.WorkflowIcon, name: "Diagnostics", cmd: "forge diagnose (planned)", desc: roles.NewDiagnosticsConfig().Description},
+			{icon: constants.WorkflowIcon, name: "Diagnostics", cmd: "forge diag --logs-file <path>", desc: roles.NewDiagnosticsConfig().Description},
 		}
 
 		fmt.Println(sectionStyle.Render("Specialized Execution Workers:"))

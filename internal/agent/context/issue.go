@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
 )
 
 // IssueLoader loads context for issue triage.
@@ -21,11 +21,11 @@ func NewIssueLoader(repo string) *IssueLoader {
 }
 
 type ghIssueViewData struct {
-	Number   int    `json:"number"`
-	Title    string `json:"title"`
-	Body     string `json:"body"`
-	State    string `json:"state"`
-	Author   struct {
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	State  string `json:"state"`
+	Author struct {
 		Login string `json:"login"`
 	} `json:"author"`
 	Comments []struct {
@@ -117,21 +117,26 @@ func FormatIssuePrompt(actx *AggregatedContext, availableLabels []string) string
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("ISSUE #%d: %s\n\n", actx.Number, actx.Title))
 	if actx.Body != "" {
-		b.WriteString(fmt.Sprintf("ISSUE BODY:\n%s\n\n", actx.Body))
+		b.WriteString(fmt.Sprintf("ISSUE BODY:\n%s\n\n", boundedText(actx.Body, 12000)))
 	}
 	if len(actx.Labels) > 0 {
 		b.WriteString(fmt.Sprintf("CURRENT LABELS: %s\n\n", strings.Join(actx.Labels, ", ")))
 	}
-	if len(actx.Comments) > 0 {
+	comments := recentComments(actx.Comments, 12, 1800)
+	if len(comments) > 0 {
 		b.WriteString("COMMENTS / DISCUSSION:\n")
-		for _, c := range actx.Comments {
+		for _, c := range comments {
 			b.WriteString(fmt.Sprintf("- %s\n", c))
 		}
 		b.WriteString("\n")
 	}
 	if len(availableLabels) > 0 {
 		b.WriteString("AVAILABLE REPOSITORY LABELS (suggest from this list when applicable):\n")
-		b.WriteString(strings.Join(availableLabels, ", "))
+		labels := availableLabels
+		if len(labels) > 300 {
+			labels = labels[:300]
+		}
+		b.WriteString(strings.Join(labels, ", "))
 		b.WriteString("\n")
 	}
 

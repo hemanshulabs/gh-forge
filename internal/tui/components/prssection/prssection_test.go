@@ -6,11 +6,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prompt"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prompt"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/section"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
 )
 
 // newTestModel creates a minimal Model with the prompt confirmation box

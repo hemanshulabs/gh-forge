@@ -7,8 +7,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/keys"
 	ghchecks "github.com/dlvhdr/x/gh-checks"
 )
 

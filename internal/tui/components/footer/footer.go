@@ -10,12 +10,12 @@ import (
 	"charm.land/lipgloss/v2/compat"
 	zone "github.com/lrstanley/bubblezone/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/git"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
-	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/git"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/keys"
+	"github.com/hemanshulabs/gh-forge/v4/internal/utils"
 )
 
 const viewSeparator = " │ "
@@ -135,26 +135,18 @@ func (m *Model) renderViewButton(view config.ViewType) string {
 	case config.IssuesView:
 		icon = ""
 		label = " Issues"
-	case config.AgentsView:
-		icon = constants.AgentIcon
-		label = " Agents"
 	}
 
 	var rendered string
 	if isActive {
 		// Active: colored icon + prominent background
-		// Use gold for notifications bell, purple for agents, green for others
+		// Use gold for notifications bell and green for other views.
 		iconColor := m.ctx.Theme.SuccessText
 		if view == config.NotificationsView {
 			iconColor = compat.AdaptiveColor{
 				Light: lipgloss.Color("#B8860B"),
 				Dark:  lipgloss.Color("#FFD700"),
 			} // Gold
-		} else if view == config.AgentsView {
-			iconColor = compat.AdaptiveColor{
-				Light: lipgloss.Color("#7B2CBF"),
-				Dark:  lipgloss.Color("#C77DFF"),
-			} // Agent Purple/Violet
 		}
 		activeStyle := lipgloss.NewStyle().
 			Foreground(iconColor).
@@ -196,8 +188,6 @@ func (m *Model) renderViewSwitcher(ctx *context.ProgramContext) string {
 		m.renderViewButton(config.PRsView),
 		ctx.Styles.ViewSwitcher.ViewsSeparator.Render(viewSeparator),
 		m.renderViewButton(config.IssuesView),
-		ctx.Styles.ViewSwitcher.ViewsSeparator.Render(viewSeparator),
-		m.renderViewButton(config.AgentsView),
 		lipgloss.NewStyle().Background(ctx.Styles.Common.FooterStyle.GetBackground()).Foreground(
 			ctx.Styles.ViewSwitcher.ViewsSeparator.GetBackground()).Render(" "),
 		repo,

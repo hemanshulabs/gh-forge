@@ -10,11 +10,11 @@ import (
 	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 
-	agentcontext "github.com/dlvhdr/gh-dash/v4/internal/agent/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/provider"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/roles"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/runtime"
-	agentui "github.com/dlvhdr/gh-dash/v4/internal/agent/ui"
+	agentcontext "github.com/hemanshulabs/gh-forge/v4/internal/agent/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/provider"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/roles"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/runtime"
+	agentui "github.com/hemanshulabs/gh-forge/v4/internal/agent/ui"
 )
 
 var (
@@ -110,8 +110,9 @@ Use --comment to post findings as a review comment on GitHub (supports --dry-run
 		rt := runtime.New(selectedProvider, runtime.Config{
 			MinConfidence: reviewConfidence,
 			TokenBudget:   reviewTokenBudget,
-			MaxRetries:    2,
+			MaxRetries:    1,
 			DryRun:        reviewDryRun,
+			Model:         reviewModel,
 		})
 
 		// 5. Chunk diff if necessary and execute
@@ -145,9 +146,9 @@ Use --comment to post findings as a review comment on GitHub (supports --dry-run
 }
 
 func init() {
-	reviewCmd.Flags().Float64Var(&reviewConfidence, "confidence", 0.75, "drop findings with confidence below this threshold (0.0 - 1.0)")
+	reviewCmd.Flags().Float64Var(&reviewConfidence, "confidence", 0.75, "minimum finding confidence (minimum 0.75)")
 	reviewCmd.Flags().IntVar(&reviewTokenBudget, "token-budget", 32000, "maximum token budget for prompt context and diffs")
-	reviewCmd.Flags().StringVar(&reviewProvider, "provider", "", "override AI provider (claude-cli, direct-api, ollama)")
+	reviewCmd.Flags().StringVar(&reviewProvider, "provider", "", "override provider (claude-cli, codex-cli, opencode-cli, agy-cli, gemini-cli, direct-api, ollama)")
 	reviewCmd.Flags().StringVar(&reviewModel, "model", "", "override backend model name")
 	reviewCmd.Flags().StringVarP(&reviewFormat, "format", "f", "pretty", "output format: pretty, json, markdown")
 	reviewCmd.Flags().BoolVar(&reviewComment, "comment", false, "post findings as a review comment on GitHub (opt-in write action)")

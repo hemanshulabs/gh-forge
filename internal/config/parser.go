@@ -21,7 +21,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	yamlmarshaller "gopkg.in/yaml.v3"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/utils"
 )
 
 var hexColorRegex = regexp.MustCompile(`^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$`)
@@ -67,7 +67,8 @@ func (a *ViewType) UnmarshalJSON(b []byte) error {
 	case "issues":
 		*a = IssuesView
 	case "agents":
-		*a = AgentsView
+		// Keep older config files usable after removing the dedicated Agents view.
+		*a = PRsView
 	case "repo":
 		*a = RepoView
 	}
@@ -508,24 +509,6 @@ func (parser ConfigParser) getDefaultConfig() Config {
 			{
 				Title:   "Team Mentioned",
 				Filters: "reason:team-mention",
-			},
-		},
-		AgentsSections: []AgentsSectionConfig{
-			{
-				Title:   "Reviewer",
-				Filters: "is:open review-requested:@me",
-			},
-			{
-				Title:   "Triage",
-				Filters: "is:open no:label",
-			},
-			{
-				Title:   "Sentinel",
-				Filters: "is:open label:security",
-			},
-			{
-				Title:   "Diagnostics",
-				Filters: "is:open status:failure",
 			},
 		},
 		Keybindings: Keybindings{

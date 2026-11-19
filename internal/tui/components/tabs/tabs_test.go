@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 	zone "github.com/lrstanley/bubblezone/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tabs/testdata"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/theme"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/section"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/tabs/testdata"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/theme"
 )
 
 // func TestTabs(t *testing.T) {

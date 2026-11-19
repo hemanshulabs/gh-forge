@@ -1,23 +1,26 @@
 package issuessection
 
 import (
+	stdcontext "context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/issuerow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/table"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tasks"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
-	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/provider"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/issuerow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/section"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/table"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/tasks"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/keys"
+	"github.com/hemanshulabs/gh-forge/v4/internal/utils"
 )
 
 const SectionType = "issue"
@@ -87,6 +90,29 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			case "enter":
 				input := m.PromptConfirmationBox.Value()
 				action := m.GetPromptConfirmationAction()
+				if action == "agentAssign" {
+					issue := m.GetCurrRow()
+					role := strings.ToLower(strings.TrimSpace(input))
+					if issue != nil && (role == "triage" || role == "janitor") {
+						cmd = m.assignAgentTask(issue, role)
+						m.Table.SetRows(m.BuildRows())
+					} else {
+						m.Ctx.Error = fmt.Errorf("assign triage or janitor to an issue")
+					}
+					m.PromptConfirmationBox.Reset()
+					return m, tea.Batch(cmd, m.SetIsPromptConfirmationShown(false))
+				}
+				if action == "agentConfig" {
+					providerID := strings.ToLower(strings.TrimSpace(input))
+					if strings.HasSuffix(providerID, "-cli") {
+						if _, err := provider.NewRegistry().Detect(stdcontext.Background(), providerID, false); err == nil {
+							m.Ctx.AgentProviderID = providerID
+							cmd = m.runWaitingAgentTasks()
+						}
+					}
+					m.PromptConfirmationBox.Reset()
+					return m, tea.Batch(cmd, m.SetIsPromptConfirmationShown(false))
+				}
 				if input == "Y" || input == "y" {
 					issue := m.GetCurrRow()
 					sid := tasks.SectionIdentifier{Id: m.Id, Type: SectionType}
@@ -104,6 +130,23 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 				return m, tea.Batch(cmd, blinkCmd)
 			}
 			break
+		}
+
+		if key.Matches(msg, keys.PRKeys.AssignTaskAgent) {
+			m.SetPromptConfirmationAction("agentAssign")
+			m.PromptConfirmationBox.SetPrompt("Assign triage or janitor to this issue: ")
+			return m, m.SetIsPromptConfirmationShown(true)
+		}
+		if key.Matches(msg, keys.PRKeys.AgentTaskConfig) {
+			m.SetPromptConfirmationAction("agentConfig")
+			var choices []string
+			for _, item := range provider.NewRegistry().ListProviders(stdcontext.Background()) {
+				if item.Available && strings.HasSuffix(item.ID, "-cli") {
+					choices = append(choices, item.ID)
+				}
+			}
+			m.PromptConfirmationBox.SetPrompt("Available: " + strings.Join(choices, ", ") + " | current: " + m.Ctx.AgentProviderID + " | select ID: ")
+			return m, m.SetIsPromptConfirmationShown(true)
 		}
 
 		switch {
@@ -166,6 +209,30 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
 			m.UpdateLastUpdated(time.Now())
 			m.UpdateTotalItemsCount(m.TotalCount)
 		}
+
+	case tasks.AgentRunFinishedMsg:
+		if task, ok := m.Ctx.AgentTasks[msg.Key]; ok {
+			task.Summary = msg.Summary
+			task.Phases = append([]string(nil), msg.Phases...)
+			task.UpdatedAt = time.Now()
+			if msg.Err != nil {
+				task.Status, task.Error = "failed", msg.Err.Error()
+				task.CurrentPhase = "Execution failed"
+			} else {
+				task.Status = msg.Status
+				if len(task.Phases) > 0 {
+					task.CurrentPhase = task.Phases[len(task.Phases)-1]
+				} else {
+					task.CurrentPhase = msg.Status
+				}
+			}
+			m.Ctx.AgentTasks[msg.Key] = task
+			m.Table.SetRows(m.BuildRows())
+		}
+
+	case tasks.AgentTaskUpdatedMsg:
+		m.Ctx.AgentTasks[msg.Task.Key] = msg.Task
+		m.Table.SetRows(m.BuildRows())
 	}
 
 	search, searchCmd := m.SearchBar.Update(msg)
@@ -258,6 +325,7 @@ func GetSectionColumns(
 			Width:  createdAtLayout.Width,
 			Hidden: createdAtLayout.Hidden,
 		},
+		{Title: "Agent", Width: utils.IntPtr(14)},
 	}
 }
 
@@ -265,7 +333,13 @@ func (m Model) BuildRows() []table.Row {
 	var rows []table.Row
 	for _, currIssue := range m.Issues {
 		issueModel := issuerow.Issue{Ctx: m.Ctx, Data: currIssue, ShowAuthorIcon: m.ShowAuthorIcon}
-		rows = append(rows, issueModel.ToTableRow())
+		row := issueModel.ToTableRow()
+		if task, ok := m.Ctx.AgentTasks[context.AgentTaskKey("issue", currIssue.Repository.NameWithOwner, currIssue.Number)]; ok {
+			row = append(row, task.Role+":"+task.Status)
+		} else {
+			row = append(row, "")
+		}
+		rows = append(rows, row)
 	}
 
 	if rows == nil {
@@ -273,6 +347,60 @@ func (m Model) BuildRows() []table.Row {
 	}
 
 	return rows
+}
+
+func (m *Model) GetPromptConfirmation() string {
+	if m.IsPromptConfirmationFocused() {
+		switch m.GetPromptConfirmationAction() {
+		case "agentAssign", "agentConfig":
+			return m.Ctx.Styles.ListViewPort.PagerStyle.Render(m.PromptConfirmationBox.View())
+		}
+	}
+	return m.BaseModel.GetPromptConfirmation()
+}
+
+func (m *Model) assignAgentTask(row data.RowData, role string) tea.Cmd {
+	if row == nil {
+		return nil
+	}
+	if m.Ctx.AgentTasks == nil {
+		m.Ctx.AgentTasks = make(map[string]context.AgentTask)
+	}
+	key := context.AgentTaskKey("issue", row.GetRepoNameWithOwner(), row.GetNumber())
+	task := context.AgentTask{Key: key, SectionID: m.Id, SectionType: SectionType, Kind: "issue", Repo: row.GetRepoNameWithOwner(), Number: row.GetNumber(), Title: row.GetTitle(), Role: role, Provider: m.Ctx.AgentProviderID, Status: "queued", UpdatedAt: time.Now()}
+	if m.Ctx.AgentProviderID == "" {
+		task.Status = "choose CLI"
+		task.CurrentPhase = "Waiting for CLI selection"
+		task.Phases = []string{"Assignment accepted", task.CurrentPhase}
+		m.Ctx.AgentTasks[key] = task
+		return nil
+	}
+	task.Status = "running"
+	task.CurrentPhase = "Starting " + task.Provider + " and loading issue context"
+	task.Phases = []string{"Assignment accepted", task.CurrentPhase}
+	m.Ctx.AgentTasks[key] = task
+	return tasks.RunAgent(stdcontext.Background(), key, task.SectionID, task.SectionType, task.Repo, task.Kind, task.Number, role, m.Ctx.AgentProviderID)
+}
+
+func (m *Model) runWaitingAgentTasks() tea.Cmd {
+	var cmds []tea.Cmd
+	for key, task := range m.Ctx.AgentTasks {
+		if task.Status != "choose CLI" {
+			continue
+		}
+		if task.Role != "triage" && task.Role != "janitor" {
+			continue
+		}
+		task.Status = "running"
+		task.Provider = m.Ctx.AgentProviderID
+		task.CurrentPhase = "Starting " + task.Provider + " and loading issue context"
+		task.Phases = []string{"Assignment accepted", task.CurrentPhase}
+		task.UpdatedAt = time.Now()
+		m.Ctx.AgentTasks[key] = task
+		cmds = append(cmds, tasks.RunAgent(stdcontext.Background(), key, task.SectionID, task.SectionType, task.Repo, task.Kind, task.Number, task.Role, task.Provider))
+	}
+	m.Table.SetRows(m.BuildRows())
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) NumRows() int {

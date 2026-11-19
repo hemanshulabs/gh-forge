@@ -9,13 +9,13 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	checks "github.com/dlvhdr/x/gh-checks"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/git"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/table"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/git"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/common"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/table"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/utils"
 )
 
 type PullRequest struct {

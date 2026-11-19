@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
 )
 
 // DirectAPIAdapter supports direct HTTP completions to Anthropic, OpenAI, or Gemini.
@@ -43,6 +43,13 @@ func (a *DirectAPIAdapter) IsAvailable(ctx context.Context) bool {
 		os.Getenv("GEMINI_API_KEY") != ""
 }
 
+func completionTokenLimit(req CompletionRequest) int {
+	if req.MaxTokens > 0 {
+		return req.MaxTokens
+	}
+	return 4096
+}
+
 func (a *DirectAPIAdapter) Complete(ctx context.Context, req CompletionRequest) (*agent.AgentResult, error) {
 	if os.Getenv("ANTHROPIC_API_KEY") != "" {
 		return a.completeAnthropic(ctx, req)
@@ -67,7 +74,7 @@ func (a *DirectAPIAdapter) completeAnthropic(ctx context.Context, req Completion
 
 	payload := map[string]any{
 		"model":      model,
-		"max_tokens": 4096,
+		"max_tokens": completionTokenLimit(req),
 		"system":     systemInstruction,
 		"messages": []map[string]string{
 			{"role": "user", "content": req.UserPrompt},
@@ -140,6 +147,7 @@ func (a *DirectAPIAdapter) completeOpenAI(ctx context.Context, req CompletionReq
 			{"role": "system", "content": systemInstruction},
 			{"role": "user", "content": req.UserPrompt},
 		},
+		"max_tokens":      completionTokenLimit(req),
 		"response_format": map[string]string{"type": "json_object"},
 	}
 	body, err := json.Marshal(payload)
@@ -219,6 +227,7 @@ func (a *DirectAPIAdapter) completeGemini(ctx context.Context, req CompletionReq
 		},
 		"generationConfig": map[string]any{
 			"responseMimeType": "application/json",
+			"maxOutputTokens":  completionTokenLimit(req),
 		},
 	}
 	body, err := json.Marshal(payload)

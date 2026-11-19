@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
 )
 
 // FilterFindings drops findings whose confidence is below minConfidence.

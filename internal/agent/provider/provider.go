@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
 )
 
 // CompletionRequest defines the input to a model provider.

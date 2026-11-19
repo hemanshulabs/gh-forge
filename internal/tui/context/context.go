@@ -1,15 +1,16 @@
 package context
 
 import (
+	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	gitm "github.com/aymanbagabas/git-module"
 	"github.com/cli/go-gh/v2/pkg/repository"
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/theme"
-	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/theme"
+	"github.com/hemanshulabs/gh-forge/v4/internal/utils"
 )
 
 type State = int
@@ -28,6 +29,28 @@ type Task struct {
 	Error        error
 	StartTime    time.Time
 	FinishedTime *time.Time
+}
+
+type AgentTask struct {
+	Key          string
+	SectionID    int
+	SectionType  string
+	Kind         string
+	Repo         string
+	Number       int
+	Title        string
+	Role         string
+	Provider     string
+	Status       string
+	CurrentPhase string
+	Phases       []string
+	Summary      string
+	Error        string
+	UpdatedAt    time.Time
+}
+
+func AgentTaskKey(kind, repo string, number int) string {
+	return fmt.Sprintf("%s:%s#%d", kind, repo, number)
 }
 
 type ProgramContext struct {
@@ -50,10 +73,13 @@ type ProgramContext struct {
 	ConfigFlag           string
 	Version              string
 	View                 config.ViewType
-	Error                error
-	StartTask            func(task Task) tea.Cmd
-	Theme                theme.Theme
-	Styles               Styles
+	// AgentProviderID is the in-memory provider selection for agent task actions.
+	AgentProviderID string
+	AgentTasks      map[string]AgentTask
+	Error           error
+	StartTask       func(task Task) tea.Cmd
+	Theme           theme.Theme
+	Styles          Styles
 }
 
 func (ctx *ProgramContext) HasGHRepo() bool {
@@ -81,10 +107,6 @@ func (ctx *ProgramContext) GetViewSectionsConfig() []config.SectionConfig {
 		}
 	case config.IssuesView:
 		for _, cfg := range ctx.Config.IssuesSections {
-			configs = append(configs, cfg.ToSectionConfig())
-		}
-	case config.AgentsView:
-		for _, cfg := range ctx.Config.AgentsSections {
 			configs = append(configs, cfg.ToSectionConfig())
 		}
 	}

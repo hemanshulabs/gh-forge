@@ -11,11 +11,11 @@ import (
 	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 
-	agentcontext "github.com/dlvhdr/gh-dash/v4/internal/agent/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/provider"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/roles"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/runtime"
-	agentui "github.com/dlvhdr/gh-dash/v4/internal/agent/ui"
+	agentcontext "github.com/hemanshulabs/gh-forge/v4/internal/agent/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/provider"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/roles"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/runtime"
+	agentui "github.com/hemanshulabs/gh-forge/v4/internal/agent/ui"
 )
 
 var (
@@ -99,8 +99,9 @@ Use --apply to apply suggested labels or --comment to post triage notes (support
 		rt := runtime.New(selectedProvider, runtime.Config{
 			MinConfidence: triageConfidence,
 			TokenBudget:   triageTokenBudget,
-			MaxRetries:    2,
+			MaxRetries:    1,
 			DryRun:        triageDryRun,
+			Model:         triageModel,
 		})
 
 		// 5. Execute Triage agent
@@ -154,9 +155,9 @@ Use --apply to apply suggested labels or --comment to post triage notes (support
 }
 
 func init() {
-	triageCmd.Flags().Float64Var(&triageConfidence, "confidence", 0.70, "drop findings with confidence below this threshold (0.0 - 1.0)")
+	triageCmd.Flags().Float64Var(&triageConfidence, "confidence", 0.75, "minimum finding confidence (minimum 0.75)")
 	triageCmd.Flags().IntVar(&triageTokenBudget, "token-budget", 16000, "maximum token budget for prompt context")
-	triageCmd.Flags().StringVar(&triageProvider, "provider", "", "override AI provider (claude-cli, direct-api, ollama)")
+	triageCmd.Flags().StringVar(&triageProvider, "provider", "", "override provider (claude-cli, codex-cli, opencode-cli, agy-cli, gemini-cli, direct-api, ollama)")
 	triageCmd.Flags().StringVar(&triageModel, "model", "", "override backend model name")
 	triageCmd.Flags().StringVarP(&triageFormat, "format", "f", "pretty", "output format: pretty, json, markdown")
 	triageCmd.Flags().BoolVar(&triageApply, "apply", false, "apply suggested labels to the issue on GitHub (opt-in write action)")

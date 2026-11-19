@@ -10,7 +10,7 @@ import (
 	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
 )
 
 // sponsorsCmd represents the sponsors command

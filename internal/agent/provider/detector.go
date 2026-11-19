@@ -19,6 +19,10 @@ func NewRegistry() *Registry {
 	return &Registry{
 		providers: []Provider{
 			NewClaudeCLIAdapter(),
+			NewRestrictedCLIAdapter("codex-cli", "Codex CLI", "Restricted Codex CLI (read-only sandbox)", "codex"),
+			NewRestrictedCLIAdapter("opencode-cli", "OpenCode CLI", "Restricted OpenCode CLI (read-only tools)", "opencode"),
+			NewRestrictedCLIAdapter("agy-cli", "Antigravity CLI", "Antigravity CLI in plan mode and sandbox", "agy"),
+			NewRestrictedCLIAdapter("gemini-cli", "Gemini CLI", "Gemini CLI in read-only plan mode", "gemini"),
 			NewDirectAPIAdapter(),
 			NewOllamaAdapter(),
 		},
@@ -44,7 +48,7 @@ func (r *Registry) Detect(ctx context.Context, preferredID string, privateMode b
 				return p, nil
 			}
 		}
-		return nil, fmt.Errorf("unknown provider %q; available providers: claude-cli, direct-api, ollama", preferredID)
+		return nil, fmt.Errorf("unknown provider %q; run 'forge agents' to list available providers", preferredID)
 	}
 
 	// Auto-detect based on priority
@@ -67,6 +71,14 @@ func (r *Registry) ListProviders(ctx context.Context) []ProviderInfo {
 			switch p.ID() {
 			case "claude-cli":
 				reason = "'claude' binary not found in PATH"
+			case "codex-cli":
+				reason = "'codex' binary not found in PATH"
+			case "opencode-cli":
+				reason = "'opencode' binary not found in PATH"
+			case "agy-cli":
+				reason = "'agy' binary not found in PATH"
+			case "gemini-cli":
+				reason = "'gemini' binary not found in PATH"
 			case "direct-api":
 				reason = "Missing API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY)"
 			case "ollama":

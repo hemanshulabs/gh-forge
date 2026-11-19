@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
 )
 
 var (
@@ -96,9 +96,20 @@ func RenderPretty(result *agent.AgentResult) string {
 		b.WriteString(summaryBoxStyle.Render(summaryContent))
 		b.WriteString("\n\n")
 	}
+	for _, warning := range result.Warnings {
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#E5C07B")).Render("Warning: " + warning))
+		b.WriteString("\n")
+	}
+	if len(result.Warnings) > 0 {
+		b.WriteString("\n")
+	}
 
 	if len(result.Findings) == 0 {
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B")).Render(fmt.Sprintf("  %s No issues identified by agent.", constants.SuccessIcon)))
+		message := "No issues identified by agent."
+		if len(result.Warnings) > 0 {
+			message = "No findings in the completed analysis."
+		}
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B")).Render(fmt.Sprintf("  %s %s", constants.SuccessIcon, message)))
 		b.WriteString("\n")
 		return b.String()
 	}
@@ -150,9 +161,16 @@ func renderMarkdown(result *agent.AgentResult) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("## Forge AI %s\n\n", result.Role))
 	b.WriteString(fmt.Sprintf("> **Summary:** %s\n\n", result.Summary))
+	for _, warning := range result.Warnings {
+		b.WriteString("> **Warning:** " + warning + "\n\n")
+	}
 
 	if len(result.Findings) == 0 {
-		b.WriteString("No issues found.\n")
+		if len(result.Warnings) > 0 {
+			b.WriteString("No findings in the completed analysis.\n")
+		} else {
+			b.WriteString("No issues found.\n")
+		}
 		return b.String()
 	}
 

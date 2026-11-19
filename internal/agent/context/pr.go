@@ -50,9 +50,9 @@ func (l *PRLoader) Load(ctx context.Context, target string) (*AggregatedContext,
 	}
 
 	cmd := exec.CommandContext(ctx, "gh", args...)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch PR metadata via 'gh pr view': %w", err)
+		return nil, fmt.Errorf("failed to fetch PR metadata via 'gh pr view': %w: %s", err, strings.TrimSpace(string(output)))
 	}
 
 	var data ghPRViewData
@@ -62,7 +62,9 @@ func (l *PRLoader) Load(ctx context.Context, target string) (*AggregatedContext,
 
 	// Fetch diff
 	diff, err := FetchPRDiff(ctx, l.Repo, data.Number)
+	diffLoadError := ""
 	if err != nil {
+		diffLoadError = err.Error()
 		diff = "[Unable to load diff automatically]"
 	}
 
@@ -92,15 +94,16 @@ func (l *PRLoader) Load(ctx context.Context, target string) (*AggregatedContext,
 	}
 
 	return &AggregatedContext{
-		TargetType: "pr",
-		Repo:       l.Repo,
-		Number:     data.Number,
-		Title:      data.Title,
-		Body:       data.Body,
-		Diff:       diff,
-		Comments:   comments,
-		Labels:     labels,
-		CIStatus:   ciStatus,
+		TargetType:    "pr",
+		Repo:          l.Repo,
+		Number:        data.Number,
+		Title:         data.Title,
+		Body:          data.Body,
+		Diff:          diff,
+		DiffLoadError: diffLoadError,
+		Comments:      comments,
+		Labels:        labels,
+		CIStatus:      ciStatus,
 	}, nil
 }
 
@@ -126,14 +129,15 @@ func FormatPRPrompt(actx *AggregatedContext) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("PULL REQUEST #%d: %s\n\n", actx.Number, actx.Title))
 	if actx.Body != "" {
-		b.WriteString(fmt.Sprintf("DESCRIPTION:\n%s\n\n", actx.Body))
+		b.WriteString(fmt.Sprintf("DESCRIPTION:\n%s\n\n", boundedText(actx.Body, 12000)))
 	}
 	if actx.CIStatus != "" && actx.CIStatus != "UNKNOWN" {
 		b.WriteString(fmt.Sprintf("CI STATUS: %s\n\n", actx.CIStatus))
 	}
-	if len(actx.Comments) > 0 {
+	comments := recentComments(actx.Comments, 12, 1800)
+	if len(comments) > 0 {
 		b.WriteString("RECENT COMMENTS / DISCUSSION:\n")
-		for _, c := range actx.Comments {
+		for _, c := range comments {
 			b.WriteString(fmt.Sprintf("- %s\n", c))
 		}
 		b.WriteString("\n")

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	stdcontext "context"
 	"fmt"
 	"io"
 	"os"
@@ -24,32 +25,33 @@ import (
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	gitm "github.com/aymanbagabas/git-module"
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
-	"github.com/dlvhdr/gh-dash/v4/internal/git"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/branch"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/branchsidebar"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/footer"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/issuessection"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/issueview"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/notificationrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/notificationssection"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/notificationview"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prssection"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prview"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/reposection"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/sidebar"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tabs"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/tasks"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/markdown"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/theme"
-	"github.com/dlvhdr/gh-dash/v4/internal/utils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/provider"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/git"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/common"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/branch"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/branchsidebar"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/footer"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/issuessection"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/issueview"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/notificationrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/notificationssection"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/notificationview"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prssection"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prview"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/reposection"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/section"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/sidebar"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/tabs"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/tasks"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/keys"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/markdown"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/theme"
+	"github.com/hemanshulabs/gh-forge/v4/internal/utils"
 )
 
 var execCommand = exec.Command
@@ -65,25 +67,31 @@ type cliUpgradeFinishedMsg struct {
 }
 
 type Model struct {
-	keys             *keys.KeyMap
-	sidebar          sidebar.Model
-	prView           prview.Model
-	issueSidebar     issueview.Model
-	branchSidebar    branchsidebar.Model
-	notificationView notificationview.Model
-	currSectionId    int
-	footer           footer.Model
-	repo             section.Section
-	prs              []section.Section
-	issues           []section.Section
-	notifications    []section.Section
-	agents           []section.Section
-	tabs             tabs.Model
-	ctx              *context.ProgramContext
-	taskSpinner      spinner.Model
-	tasks            map[string]context.Task
-	positionOverride string // "" means no override, "right" or "bottom"
-	mode             Mode
+	keys                 *keys.KeyMap
+	sidebar              sidebar.Model
+	prView               prview.Model
+	issueSidebar         issueview.Model
+	branchSidebar        branchsidebar.Model
+	notificationView     notificationview.Model
+	currSectionId        int
+	footer               footer.Model
+	repo                 section.Section
+	prs                  []section.Section
+	issues               []section.Section
+	notifications        []section.Section
+	tabs                 tabs.Model
+	ctx                  *context.ProgramContext
+	taskSpinner          spinner.Model
+	tasks                map[string]context.Task
+	positionOverride     string // "" means no override, "right" or "bottom"
+	mode                 Mode
+	agentConfigOpen      bool
+	agentConfigProviders []provider.ProviderInfo
+	agentConfigSelected  int
+	agentAssignOpen      bool
+	agentAssignRoles     []string
+	agentAssignSelected  int
+	agentAssignTask      context.AgentTask
 }
 
 type Mode int
@@ -120,6 +128,7 @@ func NewModel(location config.Location, repos Repositories, appVersion ...string
 		ConfigFlag: location.ConfigFlag,
 		RepoPath:   location.RepoPath,
 		Version:    version,
+		AgentTasks: map[string]context.AgentTask{},
 		StartTask: func(task context.Task) tea.Cmd {
 			log.Info("Starting task", "id", task.Id)
 			task.StartTime = time.Now()
@@ -221,7 +230,58 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		log.Info("Key pressed", "key", msg.String())
 		m.ctx.Error = nil
-
+		if m.agentConfigOpen {
+			switch msg.String() {
+			case "esc", "ctrl+c":
+				m.agentConfigOpen = false
+				return m, nil
+			case "up", "k":
+				if len(m.agentConfigProviders) > 0 {
+					m.agentConfigSelected = (m.agentConfigSelected - 1 + len(m.agentConfigProviders)) % len(m.agentConfigProviders)
+				}
+				return m, nil
+			case "down", "j":
+				if len(m.agentConfigProviders) > 0 {
+					m.agentConfigSelected = (m.agentConfigSelected + 1) % len(m.agentConfigProviders)
+				}
+				return m, nil
+			case "enter":
+				if len(m.agentConfigProviders) == 0 {
+					m.agentConfigOpen = false
+					return m, nil
+				}
+				m.ctx.AgentProviderID = m.agentConfigProviders[m.agentConfigSelected].ID
+				m.agentConfigOpen = false
+				return m, m.resumeWaitingAgentTasks()
+			default:
+				return m, nil
+			}
+		}
+		if m.agentAssignOpen {
+			switch msg.String() {
+			case "esc", "ctrl+c":
+				m.agentAssignOpen = false
+				return m, nil
+			case "up", "k":
+				if len(m.agentAssignRoles) > 0 {
+					m.agentAssignSelected = (m.agentAssignSelected - 1 + len(m.agentAssignRoles)) % len(m.agentAssignRoles)
+				}
+				return m, nil
+			case "down", "j":
+				if len(m.agentAssignRoles) > 0 {
+					m.agentAssignSelected = (m.agentAssignSelected + 1) % len(m.agentAssignRoles)
+				}
+				return m, nil
+			case "enter":
+				m.agentAssignOpen = false
+				if len(m.agentAssignRoles) == 0 {
+					return m, nil
+				}
+				return m, m.startAssignedAgent(m.agentAssignRoles[m.agentAssignSelected])
+			default:
+				return m, nil
+			}
+		}
 		if currSection != nil && (currSection.IsSearchFocused() ||
 			currSection.IsPromptConfirmationFocused()) {
 			cmd = m.updateSection(currSection.GetId(), currSection.GetType(), msg)
@@ -441,8 +501,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case key.Matches(msg, keys.BranchKeys.ViewPRs):
 				cmds = append(cmds, m.switchSelectedView())
 			}
-		case m.ctx.View == config.PRsView || m.ctx.View == config.AgentsView:
+		case m.ctx.View == config.PRsView:
 			switch {
+			case m.ctx.View == config.PRsView && key.Matches(msg, keys.PRKeys.AgentTaskConfig):
+				m.openAgentConfigModal()
+				return m, nil
+
+			case m.ctx.View == config.PRsView && key.Matches(msg, keys.PRKeys.AssignTaskAgent):
+				m.openAgentAssignModal(currRowData, "pr", currSection)
+				return m, nil
+
+			case m.ctx.View == config.PRsView && key.Matches(msg, keys.PRKeys.AgentTaskConfig):
+				return m, m.promptConfirmation(currSection, "agentConfig")
+
 			case key.Matches(msg, keys.PRKeys.PrevSidebarTab),
 				key.Matches(msg, keys.PRKeys.NextSidebarTab):
 				var scmds []tea.Cmd
@@ -516,6 +587,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case m.ctx.View == config.IssuesView:
 			switch {
+			case key.Matches(msg, keys.PRKeys.AgentTaskConfig):
+				m.openAgentConfigModal()
+				return m, nil
+
+			case key.Matches(msg, keys.PRKeys.AssignTaskAgent):
+				m.openAgentAssignModal(currRowData, "issue", currSection)
+				return m, nil
+
+			case key.Matches(msg, keys.PRKeys.AgentTaskConfig):
+				return m, m.promptConfirmation(currSection, "agentConfig")
+
 			case key.Matches(msg, m.keys.OpenGithub):
 				cmds = append(cmds, m.openBrowser())
 
@@ -718,6 +800,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case initMsg:
 		m.ctx.Config = &msg.Config
+		if m.ctx.AgentProviderID == "" {
+			for _, id := range []string{"claude-cli", "codex-cli", "opencode-cli", "agy-cli", "gemini-cli"} {
+				if _, err := provider.NewRegistry().Detect(stdcontext.Background(), id, false); err == nil {
+					m.ctx.AgentProviderID = id
+					break
+				}
+			}
+		}
 		m.ctx.RepoUrl = msg.RepoUrl
 		m.ctx.Theme = theme.ParseTheme(m.ctx.Config)
 		m.ctx.Styles = context.InitStyles(m.ctx.Theme)
@@ -725,6 +815,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Background(m.ctx.Theme.SelectedBackground)
 
 		m.ctx.View = m.ctx.Config.Defaults.View
+		if m.ctx.View == config.AgentsView {
+			m.ctx.View = config.PRsView
+		}
 		m.currSectionId = 0
 		m.sidebar.IsOpen = msg.Config.Defaults.Preview.Open
 		m.syncMainContentDimensions()
@@ -753,6 +846,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fetchSectionsCmds := m.fetchAllViewSections()
 		m.updateTabs()
 		cmds = append(cmds, fetchSectionsCmds, m.doRefreshAtInterval())
+
+	case tasks.AgentRunFinishedMsg:
+		task, ok := m.ctx.AgentTasks[msg.Key]
+		if !ok || task.Status == "cancelled" {
+			return m, nil // Ignore any completion racing with a user cancellation.
+		}
+		return m, m.updateSection(msg.SectionID, msg.SectionType, msg)
 
 	case userFetchedMsg:
 		m.ctx.User = msg.user
@@ -787,14 +887,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case prview.EnrichedPrMsg:
 		if msg.Err == nil {
 			m.prView.SetEnrichedPR(msg.Data)
-			if m.ctx.View == config.AgentsView {
-				if msg.Id < len(m.agents) && m.agents[msg.Id] != nil {
-					m.agents[msg.Id].(*prssection.Model).EnrichPR(msg.Data)
-				}
-			} else {
-				if msg.Id < len(m.prs) && m.prs[msg.Id] != nil {
-					m.prs[msg.Id].(*prssection.Model).EnrichPR(msg.Data)
-				}
+			if msg.Id < len(m.prs) && m.prs[msg.Id] != nil {
+				m.prs[msg.Id].(*prssection.Model).EnrichPR(msg.Data)
 			}
 			syncCmd := m.syncSidebar()
 			cmds = append(cmds, syncCmd)
@@ -1013,8 +1107,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.switchToView(config.PRsView))
 		} else if zone.Get("view_" + string(config.IssuesView)).InBounds(msg) {
 			cmds = append(cmds, m.switchToView(config.IssuesView))
-		} else if zone.Get("view_" + string(config.AgentsView)).InBounds(msg) {
-			cmds = append(cmds, m.switchToView(config.AgentsView))
 		}
 
 	case tea.MouseWheelMsg:
@@ -1216,11 +1308,177 @@ func (m *Model) View() tea.View {
 		y := m.ctx.ScreenHeight - common.FooterHeight - m.issueSidebar.InputBoxLineFromButton() - common.InputBoxHeight - 6
 		layers = append(layers, lipgloss.NewLayer(issueCmp).X(previewPos.X+3).Y(y))
 	}
+	if m.agentConfigOpen {
+		modal := m.agentConfigModalView()
+		x := max(0, (m.ctx.ScreenWidth-lipgloss.Width(modal))/2)
+		y := max(0, (m.ctx.ScreenHeight-lipgloss.Height(modal))/2)
+		layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y))
+	}
+	if m.agentAssignOpen {
+		modal := m.agentAssignModalView()
+		x := max(0, (m.ctx.ScreenWidth-lipgloss.Width(modal))/2)
+		y := max(0, (m.ctx.ScreenHeight-lipgloss.Height(modal))/2)
+		layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y))
+	}
 
 	comp := lipgloss.NewCompositor(layers...)
 	v.SetContent(comp.Render())
 
 	return v
+}
+
+func (m *Model) openAgentConfigModal() {
+	m.agentConfigProviders = m.agentConfigProviders[:0]
+	for _, info := range provider.NewRegistry().ListProviders(stdcontext.Background()) {
+		if info.Available && strings.HasSuffix(info.ID, "-cli") {
+			m.agentConfigProviders = append(m.agentConfigProviders, info)
+		}
+	}
+	m.agentConfigSelected = 0
+	for i, info := range m.agentConfigProviders {
+		if info.ID == m.ctx.AgentProviderID {
+			m.agentConfigSelected = i
+			break
+		}
+	}
+	m.agentConfigOpen = true
+}
+
+func (m *Model) openAgentAssignModal(row data.RowData, kind string, currSection section.Section) {
+	if row == nil || reflect.ValueOf(row).Kind() == reflect.Ptr && reflect.ValueOf(row).IsNil() || currSection == nil {
+		m.ctx.Error = fmt.Errorf("select a pull request or issue before assigning an agent")
+		return
+	}
+	kind = strings.ToLower(kind)
+	roles := []string{"reviewer", "sentinel", "janitor"}
+	if kind == "issue" {
+		roles = []string{"triage", "janitor"}
+	} else {
+		roles = []string{"reviewer", "sentinel", "diagnostics", "janitor"}
+	}
+	task := context.AgentTask{
+		Key:         context.AgentTaskKey(kind, row.GetRepoNameWithOwner(), row.GetNumber()),
+		SectionID:   currSection.GetId(),
+		SectionType: currSection.GetType(),
+		Kind:        kind,
+		Repo:        row.GetRepoNameWithOwner(),
+		Number:      row.GetNumber(),
+		Title:       row.GetTitle(),
+		UpdatedAt:   time.Now(),
+	}
+	if queueRow, ok := row.(*prssection.AgentQueueRow); ok {
+		task.SectionID = queueRow.Task.SectionID
+		task.SectionType = queueRow.Task.SectionType
+	}
+	m.agentAssignTask = task
+	m.agentAssignRoles = roles
+	m.agentAssignSelected = 0
+	m.agentAssignOpen = true
+}
+
+func (m *Model) startAssignedAgent(role string) tea.Cmd {
+	task := m.agentAssignTask
+	task.Role = role
+	task.Provider = m.ctx.AgentProviderID
+	task.UpdatedAt = time.Now()
+	if m.ctx.AgentTasks == nil {
+		m.ctx.AgentTasks = make(map[string]context.AgentTask)
+	}
+	if task.Provider == "" {
+		task.Status = "choose CLI"
+		task.CurrentPhase = "Waiting for CLI selection"
+		task.Phases = []string{"Assignment accepted", "Waiting for CLI selection"}
+		m.ctx.AgentTasks[task.Key] = task
+		update := m.updateSection(task.SectionID, task.SectionType, tasks.AgentTaskUpdatedMsg{Task: task})
+		m.openAgentConfigModal()
+		return update
+	}
+	task.Status = "running"
+	task.CurrentPhase = "Starting " + task.Provider + " and loading " + task.Kind + " context"
+	task.Phases = []string{"Assignment accepted", task.CurrentPhase}
+	m.ctx.AgentTasks[task.Key] = task
+	run := m.launchAgent(task)
+	task = m.ctx.AgentTasks[task.Key]
+	update := m.updateSection(task.SectionID, task.SectionType, tasks.AgentTaskUpdatedMsg{Task: task})
+	return tea.Sequence(update, run)
+}
+
+func (m *Model) launchAgent(task context.AgentTask) tea.Cmd {
+	m.ctx.AgentTasks[task.Key] = task
+	return tasks.RunAgent(stdcontext.Background(), task.Key, task.SectionID, task.SectionType, task.Repo, task.Kind, task.Number, task.Role, task.Provider)
+}
+
+func (m *Model) agentAssignModalView() string {
+	primary := lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText)
+	faint := lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText)
+	selected := lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Background(m.ctx.Theme.SelectedBackground).Bold(true)
+	lines := []string{
+		primary.Bold(true).Render(fmt.Sprintf("Assign agent to %s #%d", m.agentAssignTask.Repo, m.agentAssignTask.Number)),
+		faint.Render(m.agentAssignTask.Title),
+		"",
+	}
+	for i, role := range m.agentAssignRoles {
+		line := primary.Render("  " + role)
+		if i == m.agentAssignSelected {
+			line = selected.Width(62).Render("› " + role)
+		}
+		lines = append(lines, line)
+	}
+	lines = append(lines, "", faint.Render("↑/↓ or j/k move   Enter assign   Esc cancel"))
+	return lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(m.ctx.Theme.PrimaryText).
+		Background(m.ctx.Theme.SelectedBackground).Padding(1, 2).Width(68).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+}
+
+func (m *Model) agentConfigModalView() string {
+	primary := lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText)
+	faint := lipgloss.NewStyle().Foreground(m.ctx.Theme.FaintText)
+	selectedStyle := lipgloss.NewStyle().Foreground(m.ctx.Theme.PrimaryText).Background(m.ctx.Theme.SelectedBackground).Bold(true)
+	lines := []string{
+		primary.Bold(true).Render("Agent CLI configuration"),
+		faint.Render("Choose an installed CLI for manual and automatic agent runs."),
+		"",
+	}
+	if len(m.agentConfigProviders) == 0 {
+		lines = append(lines, faint.Render("No supported agent CLI was found in PATH."))
+	} else {
+		for i, info := range m.agentConfigProviders {
+			line := fmt.Sprintf("%s  %s", info.Name, faint.Render("("+info.ID+")"))
+			if i == m.agentConfigSelected {
+				line = selectedStyle.Width(62).Render("› " + line)
+			} else {
+				line = primary.Width(62).Render("  " + line)
+			}
+			lines = append(lines, line, faint.Render("   "+info.Description))
+		}
+	}
+	lines = append(lines, "", faint.Render("↑/↓ move   Enter select   Esc close"))
+	return lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(m.ctx.Theme.PrimaryText).
+		Background(m.ctx.Theme.SelectedBackground).
+		Padding(1, 2).
+		Width(70).
+		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+}
+
+func (m *Model) resumeWaitingAgentTasks() tea.Cmd {
+	var cmds []tea.Cmd
+	for key, task := range m.ctx.AgentTasks {
+		if task.Status != "choose CLI" {
+			continue
+		}
+		task.Status = "running"
+		task.Provider = m.ctx.AgentProviderID
+		task.CurrentPhase = "Starting " + task.Provider + " and loading " + task.Kind + " context"
+		task.Phases = []string{"Assignment accepted", task.CurrentPhase}
+		task.UpdatedAt = time.Now()
+		m.ctx.AgentTasks[key] = task
+		run := m.launchAgent(task)
+		task = m.ctx.AgentTasks[key]
+		update := m.updateSection(task.SectionID, task.SectionType, tasks.AgentTaskUpdatedMsg{Task: task})
+		cmds = append(cmds, tea.Sequence(update, run))
+	}
+	return tea.Batch(cmds...)
 }
 
 type initMsg struct {
@@ -1323,17 +1581,17 @@ func (m *Model) updateSection(id int, sType string, msg tea.Msg) (cmd tea.Cmd) {
 			updatedSection, cmd = m.prs[id].Update(msg)
 			m.prs[id] = updatedSection
 		}
-	case prssection.AgentSectionType:
-		if id < len(m.agents) && m.agents[id] != nil {
-			updatedSection, cmd = m.agents[id].Update(msg)
-			m.agents[id] = updatedSection
-		}
 	case issuessection.SectionType:
-		updatedSection, cmd = m.issues[id].Update(msg)
-		m.issues[id] = updatedSection
+		if id >= 0 && id < len(m.issues) && m.issues[id] != nil {
+			updatedSection, cmd = m.issues[id].Update(msg)
+			m.issues[id] = updatedSection
+		}
 	}
-
 	currSection := m.getCurrSection()
+	switch msg.(type) {
+	case tasks.AgentTaskUpdatedMsg, tasks.AgentRunFinishedMsg:
+		cmd = tea.Batch(cmd, m.syncSidebar())
+	}
 	if currSection != nil && id == currSection.GetId() {
 		if _, ok := msg.(prssection.SectionPullRequestsFetchedMsg); ok {
 			cmd = m.onViewedRowChanged()
@@ -1736,10 +1994,6 @@ func (m *Model) fetchAllViewSections() tea.Cmd {
 		prcmds := prssection.FetchAllSections(m.ctx, m.prs)
 		cmds = append(cmds, prcmds)
 		return tea.Batch(cmds...)
-	case config.AgentsView:
-		agentcmds := prssection.FetchAllSections(m.ctx, m.agents)
-		cmds = append(cmds, agentcmds)
-		return tea.Batch(cmds...)
 	default:
 		issuecmds := issuessection.FetchAllSections(m.ctx, m.issues)
 		cmds = append(cmds, issuecmds)
@@ -1761,8 +2015,6 @@ func (m *Model) getCurrentViewSections() []section.Section {
 		return m.notifications
 	case config.PRsView:
 		return m.prs
-	case config.AgentsView:
-		return m.agents
 	default:
 		return m.issues
 	}
@@ -1774,6 +2026,9 @@ func (m *Model) updateTabs() {
 }
 
 func (m *Model) switchToView(view config.ViewType) tea.Cmd {
+	if view == config.AgentsView {
+		view = config.PRsView
+	}
 	if m.ctx.View == view {
 		return nil
 	}
@@ -1801,7 +2056,7 @@ func (m *Model) switchSelectedView() tea.Cmd {
 	repoFF := config.IsFeatureEnabled(config.FF_REPO_VIEW)
 	var nextView config.ViewType
 
-	// View cycle: Notifications → PRs → Issues → Agents (→ Repo if enabled) → Notifications
+	// View cycle: Notifications → PRs → Issues (→ Repo if enabled) → Notifications
 	if repoFF {
 		switch m.ctx.View {
 		case config.NotificationsView:
@@ -1809,8 +2064,6 @@ func (m *Model) switchSelectedView() tea.Cmd {
 		case config.PRsView:
 			nextView = config.IssuesView
 		case config.IssuesView:
-			nextView = config.AgentsView
-		case config.AgentsView:
 			nextView = config.RepoView
 		case config.RepoView:
 			nextView = config.NotificationsView
@@ -1824,7 +2077,7 @@ func (m *Model) switchSelectedView() tea.Cmd {
 		case config.PRsView:
 			nextView = config.IssuesView
 		case config.IssuesView:
-			nextView = config.AgentsView
+			nextView = config.NotificationsView
 		default:
 			nextView = config.NotificationsView
 		}
@@ -1851,14 +2104,7 @@ func (m *Model) isUserDefinedKeybinding(msg tea.KeyMsg) bool {
 		}
 	}
 
-	if m.ctx.View == config.PRsView || m.ctx.View == config.AgentsView {
-		if m.ctx.View == config.AgentsView {
-			for _, keybinding := range m.ctx.Config.Keybindings.Agents {
-				if keybinding.Builtin == "" && keybinding.Key == msg.String() {
-					return true
-				}
-			}
-		}
+	if m.ctx.View == config.PRsView {
 		for _, keybinding := range m.ctx.Config.Keybindings.Prs {
 			if keybinding.Builtin == "" && keybinding.Key == msg.String() {
 				return true
@@ -2118,18 +2364,6 @@ func (m *Model) addNewSection() {
 			time.Now(),
 			time.Now(),
 		)))
-	case config.AgentsView:
-		sid = len(m.agents)
-		m.agents = append(m.agents, new(prssection.NewAgentModel(
-			sid,
-			m.ctx,
-			config.PrsSectionConfig{
-				Title:   "Scratch",
-				Filters: "archived:false",
-			},
-			time.Now(),
-			time.Now(),
-		)))
 	}
 	m.updateTabs()
 	m.setCurrSectionId(sid)
@@ -2150,8 +2384,6 @@ func (m *Model) removeSection() {
 		m.notifications = slices.Delete(m.notifications, del, del+1)
 	case config.PRsView:
 		m.prs = slices.Delete(m.prs, del, del+1)
-	case config.AgentsView:
-		m.agents = slices.Delete(m.agents, del, del+1)
 	}
 
 	for i, s := range m.getCurrentViewSections() {
@@ -2167,7 +2399,6 @@ func (m *Model) initSections() {
 	m.prs = prssection.InitSections(m.ctx)
 	m.issues = issuessection.InitSections(m.ctx)
 	m.notifications = notificationssection.InitSections(m.ctx)
-	m.agents = prssection.InitAgentSections(m.ctx)
 }
 
 func (m *Model) isViewSectionsStale() bool {

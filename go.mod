@@ -1,4 +1,4 @@
-module github.com/dlvhdr/gh-dash/v4
+module github.com/hemanshulabs/gh-forge/v4
 
 go 1.27.1
 

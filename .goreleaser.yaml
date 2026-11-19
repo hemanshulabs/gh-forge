@@ -31,10 +31,10 @@ builds:
       - "7"
     ldflags:
       - -s -w
-      - -X github.com/dlvhdr/gh-dash/v4/cmd.Version={{.Version}}
-      - -X github.com/dlvhdr/gh-dash/v4/cmd.Commit={{.Commit}}
-      - -X github.com/dlvhdr/gh-dash/v4/cmd.Date={{.CommitDate}}
-      - -X github.com/dlvhdr/gh-dash/v4/cmd.BuiltBy=goreleaser
+      - -X github.com/hemanshulabs/gh-forge/v4/cmd.Version={{.Version}}
+      - -X github.com/hemanshulabs/gh-forge/v4/cmd.Commit={{.Commit}}
+      - -X github.com/hemanshulabs/gh-forge/v4/cmd.Date={{.CommitDate}}
+      - -X github.com/hemanshulabs/gh-forge/v4/cmd.BuiltBy=goreleaser
     # Skipping builds for Android non-ARM64 architectures as they need CGO enabled
     # https://goreleaser.com/limitations/cgo/
     ignore:

@@ -10,23 +10,24 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/listviewport"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/common"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/listviewport"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
 )
 
 type Model struct {
-	ctx            context.ProgramContext
-	Columns        []Column
-	Rows           []Row
-	EmptyState     *string
-	loadingMessage string
-	isLoading      bool
-	loadingSpinner spinner.Model
-	dimensions     constants.Dimensions
-	rowsViewport   listviewport.Model
-	ContentHeight  int // Optional: override content height (0 = use default from config)
+	ctx                       context.ProgramContext
+	Columns                   []Column
+	Rows                      []Row
+	EmptyState                *string
+	loadingMessage            string
+	isLoading                 bool
+	loadingSpinner            spinner.Model
+	dimensions                constants.Dimensions
+	rowsViewport              listviewport.Model
+	ContentHeight             int  // Optional: override content height (0 = use default from config)
+	DisableSelectedBackground bool // Optional: if true, selected row uses CellStyle without background color
 }
 
 type Column struct {
@@ -309,7 +310,11 @@ func (m *Model) renderRow(rowId int, headerColumns []string) string {
 	var style lipgloss.Style
 
 	if m.rowsViewport.GetCurrItem() == rowId {
-		style = m.ctx.Styles.Table.SelectedCellStyle
+		if m.DisableSelectedBackground {
+			style = m.ctx.Styles.Table.CellStyle
+		} else {
+			style = m.ctx.Styles.Table.SelectedCellStyle
+		}
 	} else {
 		style = m.ctx.Styles.Table.CellStyle
 	}

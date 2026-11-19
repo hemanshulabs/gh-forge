@@ -10,11 +10,11 @@ import (
 	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 
-	agentcontext "github.com/dlvhdr/gh-dash/v4/internal/agent/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/provider"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/roles"
-	"github.com/dlvhdr/gh-dash/v4/internal/agent/runtime"
-	agentui "github.com/dlvhdr/gh-dash/v4/internal/agent/ui"
+	agentcontext "github.com/hemanshulabs/gh-forge/v4/internal/agent/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/provider"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/roles"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent/runtime"
+	agentui "github.com/hemanshulabs/gh-forge/v4/internal/agent/ui"
 )
 
 var (
@@ -104,8 +104,9 @@ Use --comment to post security findings as a review comment on GitHub (supports 
 		rt := runtime.New(selectedProvider, runtime.Config{
 			MinConfidence: scanConfidence,
 			TokenBudget:   scanTokenBudget,
-			MaxRetries:    2,
+			MaxRetries:    1,
 			DryRun:        scanDryRun,
+			Model:         scanModel,
 		})
 
 		// 5. Chunk diff if necessary and execute
@@ -139,9 +140,9 @@ Use --comment to post security findings as a review comment on GitHub (supports 
 }
 
 func init() {
-	scanCmd.Flags().Float64Var(&scanConfidence, "confidence", 0.80, "drop findings with confidence below this threshold (0.0 - 1.0)")
+	scanCmd.Flags().Float64Var(&scanConfidence, "confidence", 0.80, "minimum finding confidence (minimum 0.75)")
 	scanCmd.Flags().IntVar(&scanTokenBudget, "token-budget", 32000, "maximum token budget for prompt context and diffs")
-	scanCmd.Flags().StringVar(&scanProvider, "provider", "", "override AI provider (claude-cli, direct-api, ollama)")
+	scanCmd.Flags().StringVar(&scanProvider, "provider", "", "override provider (claude-cli, codex-cli, opencode-cli, agy-cli, gemini-cli, direct-api, ollama)")
 	scanCmd.Flags().StringVar(&scanModel, "model", "", "override backend model name")
 	scanCmd.Flags().StringVarP(&scanFormat, "format", "f", "pretty", "output format: pretty, json, markdown")
 	scanCmd.Flags().BoolVar(&scanComment, "comment", false, "post findings as a review comment on GitHub (opt-in write action)")

@@ -4,7 +4,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/keys"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/keys"
 )
 
 // PRActionType identifies the type of action requested by a key press in the PR view.

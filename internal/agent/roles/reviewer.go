@@ -1,7 +1,7 @@
 package roles
 
 import (
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
 )
 
 // ReviewerSystemPrompt defines the focused role instructions for the Reviewer agent.

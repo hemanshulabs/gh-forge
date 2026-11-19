@@ -6,7 +6,7 @@ import (
 	"charm.land/glamour/v2/styles"
 	log "charm.land/log/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
 )
 
 var (

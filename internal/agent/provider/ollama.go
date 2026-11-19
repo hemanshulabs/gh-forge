@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/agent"
+	"github.com/hemanshulabs/gh-forge/v4/internal/agent"
 )
 
 // OllamaAdapter implements local offline model execution for Private Mode.
@@ -77,6 +77,7 @@ func (o *OllamaAdapter) Complete(ctx context.Context, req CompletionRequest) (*a
 		"format": "json",
 		"options": map[string]any{
 			"temperature": req.Temperature,
+			"num_predict": req.MaxTokens,
 		},
 	}
 

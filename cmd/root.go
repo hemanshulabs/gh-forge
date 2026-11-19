@@ -23,11 +23,11 @@ import (
 	"github.com/spf13/cobra"
 
 	gitm "github.com/aymanbagabas/git-module"
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/git"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	dctx "github.com/dlvhdr/gh-dash/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/git"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	dctx "github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
 )
 
 var (

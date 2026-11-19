@@ -3,6 +3,7 @@ package context
 import (
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 )
 
 // DefaultTokenBudget is the standard budget for prompt + completion tokens.
@@ -104,29 +105,35 @@ func ChunkDiff(diff string, maxTokens int) []string {
 	}
 
 	var chunks []string
-	var currentChunk strings.Builder
-	fileDiffs := strings.Split(sanitized, "diff --git ")
-
-	for i, fd := range fileDiffs {
-		if strings.TrimSpace(fd) == "" {
-			continue
+	var current strings.Builder
+	flush := func() {
+		if current.Len() > 0 {
+			chunks = append(chunks, current.String())
+			current.Reset()
 		}
-		prefix := ""
-		if i > 0 || strings.HasPrefix(sanitized, "diff --git ") {
-			prefix = "diff --git "
-		}
-		fullBlock := prefix + fd
-
-		if EstimateTokens(currentChunk.String()+fullBlock) > maxTokens && currentChunk.Len() > 0 {
-			chunks = append(chunks, currentChunk.String())
-			currentChunk.Reset()
-		}
-		currentChunk.WriteString(fullBlock)
 	}
-
-	if currentChunk.Len() > 0 {
-		chunks = append(chunks, currentChunk.String())
+	for _, line := range strings.Split(sanitized, "\n") {
+		// A generated diff can contain a single enormous line. Split that line
+		// too so ChunkDiff never returns a chunk larger than its requested budget.
+		for len(line) > maxTokens*4 {
+			cut := maxTokens * 4
+			for cut > 0 && cut < len(line) && !utf8.RuneStart(line[cut]) {
+				cut--
+			}
+			part := line[:cut]
+			line = line[cut:]
+			if current.Len() > 0 && EstimateTokens(current.String()+part) > maxTokens {
+				flush()
+			}
+			current.WriteString(part)
+			flush()
+		}
+		candidate := line + "\n"
+		if current.Len() > 0 && EstimateTokens(current.String()+candidate) > maxTokens {
+			flush()
+		}
+		current.WriteString(candidate)
 	}
-
+	flush()
 	return chunks
 }

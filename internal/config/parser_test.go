@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/testutils"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/testutils"
 )
 
 // See https://www.gh-dash.dev/configuration/#_top

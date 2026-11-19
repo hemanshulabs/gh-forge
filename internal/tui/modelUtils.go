@@ -13,16 +13,16 @@ import (
 	"charm.land/lipgloss/v2"
 	log "charm.land/log/v2"
 
-	"github.com/dlvhdr/gh-dash/v4/internal/config"
-	"github.com/dlvhdr/gh-dash/v4/internal/data"
-	"github.com/dlvhdr/gh-dash/v4/internal/shell"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/common"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/notificationrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/prrow"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/components/section"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/constants"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/context"
-	"github.com/dlvhdr/gh-dash/v4/internal/tui/markdown"
+	"github.com/hemanshulabs/gh-forge/v4/internal/config"
+	"github.com/hemanshulabs/gh-forge/v4/internal/data"
+	"github.com/hemanshulabs/gh-forge/v4/internal/shell"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/common"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/notificationrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/prrow"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/components/section"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/constants"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/context"
+	"github.com/hemanshulabs/gh-forge/v4/internal/tui/markdown"
 )
 
 func (m *Model) getCurrSection() section.Section {
@@ -86,27 +86,6 @@ func (m *Model) executeKeybinding(key string) tea.Cmd {
 			switch data := currRowData.(type) {
 			case *data.IssueData:
 				return m.runCustomIssueCommand(keybinding.Command, data)
-			}
-		}
-	case config.AgentsView:
-		for _, keybinding := range m.ctx.Config.Keybindings.Agents {
-			if keybinding.Key != key || keybinding.Command == "" {
-				continue
-			}
-			log.Debug("executing agent keybind", "key", keybinding.Key, "command", keybinding.Command)
-			switch data := currRowData.(type) {
-			case *prrow.Data:
-				return m.runCustomPRCommand(keybinding.Command, data)
-			}
-		}
-		for _, keybinding := range m.ctx.Config.Keybindings.Prs {
-			if keybinding.Key != key || keybinding.Command == "" {
-				continue
-			}
-			log.Debug("executing pr keybind in agents view", "key", keybinding.Key, "command", keybinding.Command)
-			switch data := currRowData.(type) {
-			case *prrow.Data:
-				return m.runCustomPRCommand(keybinding.Command, data)
 			}
 		}
 	case config.PRsView:
